@@ -310,7 +310,8 @@ fun AzanScreen(viewModel: AzanViewModel, uiState: com.example.ui.UIState, modifi
         BackHandler { showSupportScreen = false }
         com.example.ui.SupportScreen(
             uiState = uiState,
-            onBack = { showSupportScreen = false }
+            onBack = { showSupportScreen = false },
+            onLangSelect = { viewModel.setLanguage(it) }
         )
     } else {
         Scaffold(
