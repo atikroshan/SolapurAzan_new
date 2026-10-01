@@ -1,0 +1,6 @@
+{
+  "name": "AZAN TIME",
+  "description": "Offline Azan timing and Ramazan tracker application with prayer logs, Taqwa points, and Google Sheets masjid sync (v2.6.13)",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
