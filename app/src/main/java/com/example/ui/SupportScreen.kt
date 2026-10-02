@@ -103,7 +103,6 @@ fun SupportScreen(
         modifier = modifier
             .fillMaxSize()
             .appBackground()
-            .islamicStarBackground(primaryGold)
     ) {
         Column(
             modifier = Modifier
@@ -152,7 +151,7 @@ fun SupportScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
-                // 1. App Title Header (As-Is Square Logo + Title)
+                // 1. App Title Header (As-Is Clean Logo + Title)
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(14.dp),
@@ -163,8 +162,7 @@ fun SupportScreen(
                         contentDescription = "Azan App Icon",
                         modifier = Modifier
                             .size(76.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .border(1.5.dp, primaryGold, RoundedCornerShape(10.dp)),
+                            .clip(RoundedCornerShape(8.dp)),
                         contentScale = ContentScale.Fit
                     )
                     Text(
