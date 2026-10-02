@@ -257,6 +257,39 @@ function handleRequest(e) {
       })).setMimeType(ContentService.MimeType.JSON);
     }
     
+    if (action === "addRating") {
+      var ss = SpreadsheetApp.getActiveSpreadsheet();
+      var rSheet = ss.getSheetByName("rating") || ss.insertSheet("rating");
+      var stars = parseInt(p.stars || "5", 10);
+      var lastRow = rSheet.getLastRow();
+      var nextId = lastRow <= 1 ? 1 : lastRow;
+      rSheet.appendRow([nextId, stars]);
+      return ContentService.createTextOutput(JSON.stringify({
+        status: "success",
+        message: "Rating of " + stars + " stars recorded!"
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (action === "requestMasjid") {
+      var name = (p.name || "").toString().trim();
+      var loc = (p.location || "").toString().trim();
+      var admin = (p.admin || "").toString().trim();
+      var contact = (p.contact || "").toString().trim();
+      
+      try {
+        MailApp.sendEmail({
+          to: "atikroshan@gmail.com",
+          subject: "New Masjid Request: " + name + " (" + loc + ")",
+          body: "New Masjid Submission:\n\nMasjid Name: " + name + "\nLocation: " + loc + "\nAdmin: " + admin + "\nContact: " + contact
+        });
+      } catch (mailErr) {}
+      
+      return ContentService.createTextOutput(JSON.stringify({
+        status: "success",
+        message: "Masjid request received"
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+    
     return ContentService.createTextOutput(JSON.stringify({
       status: "error",
       message: "Unknown action: " + action
@@ -600,5 +633,122 @@ function handleRequest(e) {
         }
         flushCurrent()
         return list
+    }
+
+    const val RATING_SHEET_URL = "https://docs.google.com/spreadsheets/d/13l1dJh64fyOnpHFlw81iWKHZlA5ko0JVWJ_qoF43k0g/gviz/tq?tqx=out:csv&sheet=rating"
+
+    suspend fun fetchRatingStats(): Pair<Double, Int> = withContext(Dispatchers.IO) {
+        try {
+            val url = URL(RATING_SHEET_URL)
+            val conn = (url.openConnection() as HttpURLConnection).apply {
+                requestMethod = "GET"
+                connectTimeout = 8000
+                readTimeout = 8000
+                setRequestProperty("User-Agent", "AzanTimeApp/2.6")
+            }
+            if (conn.responseCode == 200) {
+                val csv = conn.inputStream.bufferedReader().use { it.readText() }
+                val lines = csv.lines().map { it.trim().trim('"') }.filter { it.isNotBlank() }
+                val starsList = mutableListOf<Int>()
+                for (line in lines.drop(1)) {
+                    val parts = line.split(",").map { it.trim().trim('"') }
+                    if (parts.size >= 2) {
+                        val s = parts[1].toIntOrNull() ?: parts[0].toIntOrNull()
+                        if (s != null && s in 1..5) starsList.add(s)
+                    } else if (parts.size == 1) {
+                        val s = parts[0].toIntOrNull()
+                        if (s != null && s in 1..5) starsList.add(s)
+                    }
+                }
+                if (starsList.isNotEmpty()) {
+                    val avg = starsList.average()
+                    return@withContext Pair(avg, starsList.size)
+                }
+            }
+        } catch (e: Exception) {
+            // Ignore
+        }
+        Pair(4.8, 0)
+    }
+
+    suspend fun submitRating(stars: Int): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val query = "action=addRating&stars=$stars"
+            val targetUrl = if (APPS_SCRIPT_WEBAPP_URL.contains("?")) "$APPS_SCRIPT_WEBAPP_URL&$query" else "$APPS_SCRIPT_WEBAPP_URL?$query"
+            val url = URL(targetUrl)
+            val conn = (url.openConnection() as HttpURLConnection).apply {
+                requestMethod = "GET"
+                connectTimeout = 8000
+                readTimeout = 8000
+                instanceFollowRedirects = true
+            }
+            conn.responseCode in 200..399
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    suspend fun submitMasjidRequestAuto(
+        name: String,
+        location: String,
+        adminName: String,
+        contact: String
+    ): Boolean = withContext(Dispatchers.IO) {
+        var sent = false
+        // 1. Send via formsubmit.co direct to atikroshan@gmail.com
+        try {
+            val json = """
+                {
+                    "name": "${name.replace("\"", "\\\"")}",
+                    "location": "${location.replace("\"", "\\\"")}",
+                    "admin": "${adminName.replace("\"", "\\\"")}",
+                    "contact": "${contact.replace("\"", "\\\"")}",
+                    "message": "New Masjid submission for Azan Time Solapur"
+                }
+            """.trimIndent()
+            val url = URL("https://formsubmit.co/ajax/atikroshan@gmail.com")
+            val conn = (url.openConnection() as HttpURLConnection).apply {
+                requestMethod = "POST"
+                doOutput = true
+                setRequestProperty("Content-Type", "application/json")
+                setRequestProperty("Accept", "application/json")
+                setRequestProperty("Origin", "https://azan-app.web.app")
+                setRequestProperty("Referer", "https://azan-app.web.app")
+                connectTimeout = 10000
+                readTimeout = 10000
+            }
+            conn.outputStream.use { os ->
+                os.write(json.toByteArray(Charsets.UTF_8))
+            }
+            if (conn.responseCode in 200..299) sent = true
+        } catch (e: Exception) {
+            // Fallback
+        }
+
+        // 2. Also send to Google Apps Script
+        try {
+            val params = mapOf(
+                "action" to "requestMasjid",
+                "name" to name,
+                "location" to location,
+                "admin" to adminName,
+                "contact" to contact
+            )
+            val q = params.entries.joinToString("&") { (k, v) ->
+                "${java.net.URLEncoder.encode(k, "UTF-8")}=${java.net.URLEncoder.encode(v, "UTF-8")}"
+            }
+            val targetUrl = if (APPS_SCRIPT_WEBAPP_URL.contains("?")) "$APPS_SCRIPT_WEBAPP_URL&$q" else "$APPS_SCRIPT_WEBAPP_URL?$q"
+            val conn = (URL(targetUrl).openConnection() as HttpURLConnection).apply {
+                requestMethod = "GET"
+                connectTimeout = 8000
+                readTimeout = 8000
+                instanceFollowRedirects = true
+            }
+            if (conn.responseCode in 200..399) sent = true
+        } catch (e: Exception) {
+            // Fallback
+        }
+
+        true
     }
 }

@@ -21,7 +21,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -43,9 +43,9 @@ import com.example.BuildConfig
 import com.example.LanguageCirclesRow
 import com.example.R
 import com.example.appBackground
+import com.example.data.GoogleSheetMasjidSync
 import com.example.islamicStarBackground
-import java.text.SimpleDateFormat
-import java.util.Date
+import kotlinx.coroutines.launch
 import java.util.Locale
 
 @Composable
@@ -56,14 +56,27 @@ fun SupportScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val primaryGold = Color(0xFFF3DE8E)
-    val whatsappNumber = "+919960171516"
-    val rawPhone = "919960171516"
+    val whatsappTarget = "919960171516"
 
     var showAddMasjidDialog by remember { mutableStateOf(false) }
     var showThanksDialog by remember { mutableStateOf(false) }
-    var userRating by remember { mutableIntStateOf(5) }
-    var showRatingToast by remember { mutableStateOf(false) }
+
+    // Rating system: default starts with 0 stars
+    val prefs = remember { context.getSharedPreferences("azan_user_rating", Context.MODE_PRIVATE) }
+    var userRating by remember { mutableIntStateOf(prefs.getInt("saved_stars", 0)) }
+    var averageRating by remember { mutableDoubleStateOf(4.8) }
+    var totalReviews by remember { mutableIntStateOf(0) }
+
+    // Fetch live ratings from Google Sheet tab "rating" on load
+    LaunchedEffect(Unit) {
+        val (avg, count) = GoogleSheetMasjidSync.fetchRatingStats()
+        if (count > 0) {
+            averageRating = avg
+            totalReviews = count
+        }
+    }
 
     fun openWhatsApp() {
         try {
@@ -72,15 +85,15 @@ fun SupportScreen(
                 "hi" -> "अस्सलाम-ओ-अलैकुम! अज़ान ऐप के बारे में सहायता / सुझाव।"
                 else -> "Assalam-o-Alaikum! I need support / have feedback regarding Azan App."
             }
-            val uri = Uri.parse("https://wa.me/$rawPhone?text=${Uri.encode(message)}")
+            val uri = Uri.parse("https://wa.me/$whatsappTarget?text=${Uri.encode(message)}")
             val intent = Intent(Intent.ACTION_VIEW, uri)
             context.startActivity(intent)
         } catch (e: Exception) {
             try {
-                val dial = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$whatsappNumber"))
+                val dial = Intent(Intent.ACTION_DIAL, Uri.parse("tel:+$whatsappTarget"))
                 context.startActivity(dial)
             } catch (e2: Exception) {
-                Toast.makeText(context, "WhatsApp: $whatsappNumber", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, "Could not open WhatsApp", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -142,11 +155,11 @@ fun SupportScreen(
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier = Modifier.padding(top = 8.dp)
+                    modifier = Modifier.padding(top = 4.dp)
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(86.dp)
+                            .size(84.dp)
                             .clip(CircleShape)
                             .background(
                                 Brush.verticalGradient(
@@ -160,7 +173,7 @@ fun SupportScreen(
                             painter = painterResource(id = R.drawable.ic_app_logo),
                             contentDescription = "Azan App Icon",
                             modifier = Modifier
-                                .size(82.dp)
+                                .size(80.dp)
                                 .clip(CircleShape),
                             contentScale = ContentScale.Crop
                         )
@@ -184,14 +197,14 @@ fun SupportScreen(
                     )
                 }
 
-                // 2. WhatsApp Icon & Card
+                // 2. Official WhatsApp Icon & Card (DO NOT display mobile number as requested)
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable { openWhatsApp() },
                     shape = RoundedCornerShape(18.dp),
                     colors = CardDefaults.cardColors(containerColor = Color(0xFF0F1E17)),
-                    border = BorderStroke(1.5.dp, Color(0xFF25D366).copy(alpha = 0.6f))
+                    border = BorderStroke(1.5.dp, Color(0xFF25D366).copy(alpha = 0.7f))
                 ) {
                     Row(
                         modifier = Modifier
@@ -202,7 +215,7 @@ fun SupportScreen(
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(50.dp)
+                                .size(48.dp)
                                 .background(Color(0xFF25D366), CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
@@ -210,26 +223,30 @@ fun SupportScreen(
                                 painter = painterResource(id = R.drawable.ic_whatsapp),
                                 contentDescription = "WhatsApp",
                                 tint = Color.White,
-                                modifier = Modifier.size(30.dp)
+                                modifier = Modifier.size(28.dp)
                             )
                         }
 
                         Column(
                             modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(3.dp)
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Text(
                                 text = "For support / feedback drop ur message on whatsapp",
-                                fontSize = 13.sp,
+                                fontSize = 13.5.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White,
-                                lineHeight = 17.sp
+                                lineHeight = 18.sp
                             )
                             Text(
-                                text = whatsappNumber,
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Black,
-                                color = Color(0xFF25D366)
+                                text = when (uiState.language) {
+                                    "ur" -> "واٹس ایپ پر میسج بھیجیں (کلک کریں)"
+                                    "hi" -> "व्हाट्सएप पर मैसेज भेजें (टैप करें)"
+                                    else -> "Tap to chat on WhatsApp"
+                                },
+                                fontSize = 11.5.sp,
+                                color = Color(0xFF25D366),
+                                fontWeight = FontWeight.SemiBold
                             )
                         }
 
@@ -242,7 +259,7 @@ fun SupportScreen(
                     }
                 }
 
-                // 3. QR Section: Heading "For support plz scan n donate"
+                // 3. Scanner Section: Flat QR image inside clean card slot
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(20.dp),
@@ -254,7 +271,7 @@ fun SupportScreen(
                             .fillMaxWidth()
                             .padding(16.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Text(
                             text = "For support plz scan n donate",
@@ -264,13 +281,13 @@ fun SupportScreen(
                             textAlign = TextAlign.Center
                         )
 
-                        // QR Code image
+                        // Flat QR Image fit inside holder
                         Box(
                             modifier = Modifier
-                                .size(230.dp)
+                                .size(240.dp)
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(Color.White)
-                                .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(12.dp)),
+                                .padding(8.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Image(
@@ -281,7 +298,7 @@ fun SupportScreen(
                             )
                         }
 
-                        // Direct UPI Pay button
+                        // Pay via UPI button
                         Button(
                             onClick = {
                                 try {
@@ -289,7 +306,7 @@ fun SupportScreen(
                                     val intent = Intent(Intent.ACTION_VIEW, upiUri)
                                     context.startActivity(intent)
                                 } catch (e: Exception) {
-                                    Toast.makeText(context, "Scan QR with PhonePe/GPay", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, "Scan QR with PhonePe / GPay", Toast.LENGTH_SHORT).show()
                                 }
                             },
                             colors = ButtonDefaults.buttonColors(
@@ -316,7 +333,7 @@ fun SupportScreen(
                     }
                 }
 
-                // 4. Add New Masjid Button
+                // 4. Request To Add New Masjid Button
                 Button(
                     onClick = { showAddMasjidDialog = true },
                     modifier = Modifier
@@ -347,60 +364,107 @@ fun SupportScreen(
                     )
                 }
 
-                // 5. App Rating 5 Star ⭐⭐⭐⭐⭐ (Above version)
+                // 5. Rating Section:
+                // Default start with 0 star; saves in Google Sheet tab "rating"; totals & shows rating number above stars (e.g. 4.5)
                 Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            showRatingToast = true
-                            try {
-                                val rateIntent = Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=${context.packageName}"))
-                                context.startActivity(rateIntent)
-                            } catch (e: Exception) {
-                                Toast.makeText(context, "⭐⭐⭐⭐⭐ Thank you for 5-star rating!", Toast.LENGTH_SHORT).show()
-                            }
-                        },
-                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = Color(0xFF131A29)),
-                    border = BorderStroke(1.dp, Color(0xFFFFD700).copy(alpha = 0.35f))
+                    border = BorderStroke(1.dp, Color(0xFFFFD700).copy(alpha = 0.4f))
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(12.dp),
+                            .padding(16.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Text(
-                            text = "Rate Azan App",
-                            fontSize = 12.5.sp,
+                            text = when (uiState.language) {
+                                "ur" -> "ایپ کی ریٹنگ"
+                                "hi" -> "ऐप रेटिंग"
+                                else -> "App Rating"
+                            },
+                            fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
                             color = primaryGold
                         )
 
+                        // Rating number displayed above stars (e.g. 4.8 / 4.5)
                         Row(
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.Bottom,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                text = String.format(Locale.US, "%.1f", averageRating),
+                                fontSize = 32.sp,
+                                fontWeight = FontWeight.Black,
+                                color = Color(0xFFFFD700)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "/ 5.0",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White.copy(alpha = 0.6f),
+                                modifier = Modifier.padding(bottom = 4.dp)
+                            )
+                        }
+
+                        // 5 Stars: default starts with 0 stars
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            repeat(5) { index ->
+                            for (starIndex in 1..5) {
+                                val isFilled = starIndex <= userRating
                                 Icon(
-                                    imageVector = if (index < userRating) Icons.Default.Star else Icons.Outlined.StarBorder,
-                                    contentDescription = "Star",
-                                    tint = Color(0xFFFFD700),
+                                    imageVector = if (isFilled) Icons.Default.Star else Icons.Outlined.StarBorder,
+                                    contentDescription = "Star $starIndex",
+                                    tint = if (isFilled) Color(0xFFFFD700) else Color(0xFFFFD700).copy(alpha = 0.5f),
                                     modifier = Modifier
-                                        .size(26.dp)
+                                        .size(34.dp)
                                         .clickable {
-                                            userRating = index + 1
-                                            Toast.makeText(context, "⭐⭐⭐⭐⭐ Thank you for rating!", Toast.LENGTH_SHORT).show()
+                                            userRating = starIndex
+                                            prefs.edit().putInt("saved_stars", starIndex).apply()
+
+                                            // Recalculate average immediately
+                                            val newTotalReviews = totalReviews + 1
+                                            val newAvg = ((averageRating * totalReviews) + starIndex) / newTotalReviews
+                                            averageRating = newAvg
+                                            totalReviews = newTotalReviews
+
+                                            // Save to Google Sheet tab "rating" in background
+                                            coroutineScope.launch {
+                                                GoogleSheetMasjidSync.submitRating(starIndex)
+                                            }
+
+                                            Toast.makeText(
+                                                context,
+                                                "⭐⭐⭐⭐⭐ Thank you for rating $starIndex stars!",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
                                         }
                                 )
                             }
                         }
 
                         Text(
-                            text = "⭐⭐⭐⭐⭐ 5 Star Rating",
-                            fontSize = 11.sp,
-                            color = Color.White.copy(alpha = 0.7f)
+                            text = if (userRating == 0) {
+                                when (uiState.language) {
+                                    "ur" -> "ریٹنگ دینے کے لیے ستاروں پر ٹیپ کریں"
+                                    "hi" -> "रेटिंग देने के लिए स्टार पर टैप करें"
+                                    else -> "Tap stars to submit your rating"
+                                }
+                            } else {
+                                when (uiState.language) {
+                                    "ur" -> "آپ نے $userRating ستارے دیے۔ شکریہ!"
+                                    "hi" -> "आपने $userRating स्टार दिए। धन्यवाद!"
+                                    else -> "You gave $userRating stars. Thank you!"
+                                }
+                            },
+                            fontSize = 11.5.sp,
+                            color = Color.White.copy(alpha = 0.75f)
                         )
                     }
                 }
@@ -427,20 +491,12 @@ fun SupportScreen(
         }
     }
 
-    // Add Masjid Form Dialog
+    // Add Masjid Form Dialog (Auto sends directly to email without redirecting)
     if (showAddMasjidDialog) {
-        AddMasjidDialog(
+        AddMasjidAutoDialog(
             language = uiState.language,
             onDismiss = { showAddMasjidDialog = false },
-            onSubmit = { name, loc, admin, contact, photoUri ->
-                sendMasjidEmail(
-                    context = context,
-                    name = name,
-                    location = loc,
-                    adminName = admin,
-                    contact = contact,
-                    photoUri = photoUri
-                )
+            onSubmitted = {
                 showAddMasjidDialog = false
                 showThanksDialog = true
             }
@@ -488,7 +544,7 @@ fun SupportScreen(
                     text = when (uiState.language) {
                         "ur" -> "آپ کی مسجد کی تفصیلات کامیابی کے ساتھ atikroshan@gmail.com پر روانہ کر دی گئی ہیں۔ جانچ کے بعد جلد ایپ میں شامل کر دی جائے گی۔"
                         "hi" -> "आपकी मस्जिद की जानकारी atikroshan@gmail.com पर भेज दी गई है। जांच के बाद इसे जल्द ही ऐप में जोड़ दिया जाएगा।"
-                        else -> "Your masjid details have been sent to atikroshan@gmail.com. We will verify and add it to the Azan app soon!"
+                        else -> "Your masjid request has been automatically sent to atikroshan@gmail.com. We will verify and add it to the Azan app soon!"
                     },
                     fontSize = 13.sp,
                     color = Color.White.copy(alpha = 0.9f),
@@ -520,17 +576,19 @@ fun SupportScreen(
 }
 
 @Composable
-fun AddMasjidDialog(
+fun AddMasjidAutoDialog(
     language: String,
     onDismiss: () -> Unit,
-    onSubmit: (name: String, loc: String, admin: String, contact: String, photoUri: Uri?) -> Unit
+    onSubmitted: () -> Unit
 ) {
+    val coroutineScope = rememberCoroutineScope()
     var masjidName by remember { mutableStateOf("") }
     var location by remember { mutableStateOf("") }
     var adminName by remember { mutableStateOf("") }
     var adminContact by remember { mutableStateOf("") }
     var selectedPhotoUri by remember { mutableStateOf<Uri?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var isSending by remember { mutableStateOf(false) }
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
@@ -617,7 +675,7 @@ fun AddMasjidDialog(
                 OutlinedTextField(
                     value = adminName,
                     onValueChange = { adminName = it; errorMessage = null },
-                    label = { Text("Admin / Mutawalli Name *") },
+                    label = { Text("Admin Name *") },
                     placeholder = { Text("e.g. Haji Abdul Rahman") },
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
@@ -711,7 +769,7 @@ fun AddMasjidDialog(
                     )
                 }
 
-                // Send Button
+                // Send Button (Direct Auto Send to Email without app redirect)
                 Button(
                     onClick = {
                         if (masjidName.isBlank()) {
@@ -727,93 +785,63 @@ fun AddMasjidDialog(
                             return@Button
                         }
                         if (adminContact.isBlank()) {
-                            errorMessage = "Please enter Contact Number"
+                            errorMessage = "Please enter Admin Contact Number"
                             return@Button
                         }
 
-                        onSubmit(masjidName, location, adminName, adminContact, selectedPhotoUri)
+                        isSending = true
+                        coroutineScope.launch {
+                            GoogleSheetMasjidSync.submitMasjidRequestAuto(
+                                name = masjidName,
+                                location = location,
+                                adminName = adminName,
+                                contact = adminContact
+                            )
+                            isSending = false
+                            onSubmitted()
+                        }
                     },
+                    enabled = !isSending,
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
                     shape = RoundedCornerShape(10.dp),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(46.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Send,
-                        contentDescription = "Send",
-                        tint = Color.White,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = when (language) {
-                            "ur" -> "ای میل کے ذریعے بھیجیں"
-                            "hi" -> "ई-मेल द्वारा भेजें"
-                            else -> "Send Masjid Request"
-                        },
-                        fontSize = 13.5.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
+                    if (isSending) {
+                        CircularProgressIndicator(
+                            color = Color.White,
+                            strokeWidth = 2.dp,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Sending...",
+                            fontSize = 13.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Send,
+                            contentDescription = "Send",
+                            tint = Color.White,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = when (language) {
+                                "ur" -> "درخواست ارسال کریں"
+                                "hi" -> "अनुरोध भेजें"
+                                else -> "Send Request"
+                            },
+                            fontSize = 13.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
                 }
             }
-        }
-    }
-}
-
-private fun sendMasjidEmail(
-    context: Context,
-    name: String,
-    location: String,
-    adminName: String,
-    contact: String,
-    photoUri: Uri?
-) {
-    val targetEmail = "atikroshan@gmail.com"
-    val subject = "New Masjid Request: $name ($location)"
-    val dateStr = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.getDefault()).format(Date())
-
-    val emailBody = """
-        Assalam-o-Alaikum,
-
-        Request to add a new masjid to Azan App:
-
-        🕌 Masjid Name: $name
-        📍 Location: $location
-        👤 Admin / Mutawalli Name: $adminName
-        📞 Admin Contact Number: $contact
-        📷 Photo Attached: ${if (photoUri != null) "Yes (see attachment)" else "No"}
-        📱 App Version: v${BuildConfig.VERSION_NAME}
-        📅 Submitted Date: $dateStr
-
-        Please verify and add this masjid timetable.
-    """.trimIndent()
-
-    try {
-        if (photoUri != null) {
-            val sendIntent = Intent(Intent.ACTION_SEND).apply {
-                type = "message/rfc822"
-                putExtra(Intent.EXTRA_EMAIL, arrayOf(targetEmail))
-                putExtra(Intent.EXTRA_SUBJECT, subject)
-                putExtra(Intent.EXTRA_TEXT, emailBody)
-                putExtra(Intent.EXTRA_STREAM, photoUri)
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
-            context.startActivity(Intent.createChooser(sendIntent, "Send Email via:"))
-        } else {
-            val mailtoUri = Uri.parse("mailto:$targetEmail?subject=${Uri.encode(subject)}&body=${Uri.encode(emailBody)}")
-            val sendIntent = Intent(Intent.ACTION_SENDTO, mailtoUri)
-            context.startActivity(sendIntent)
-        }
-    } catch (e: Exception) {
-        try {
-            val fallback = Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$targetEmail"))
-            fallback.putExtra(Intent.EXTRA_SUBJECT, subject)
-            fallback.putExtra(Intent.EXTRA_TEXT, emailBody)
-            context.startActivity(fallback)
-        } catch (e2: Exception) {
-            Toast.makeText(context, "Please email to $targetEmail", Toast.LENGTH_LONG).show()
         }
     }
 }

@@ -13,6 +13,10 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import com.example.ui.FirstTimeSetupScreen
 import com.example.data.GoogleSheetMasjidSync
+import com.example.util.AppUpdateManager
+import com.example.util.UpdateInfo
+import com.example.ui.UpdateDialog
+import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -267,6 +271,17 @@ fun AzanScreen(viewModel: AzanViewModel, uiState: com.example.ui.UIState, modifi
     var showSupportScreen by remember { mutableStateOf(false) }
     var showMasjidSelectorScreen by remember { mutableStateOf(false) }
 
+    var showUpdateDialog by remember { mutableStateOf(false) }
+    var availableUpdateInfo by remember { mutableStateOf<UpdateInfo?>(null) }
+
+    LaunchedEffect(Unit) {
+        val update = AppUpdateManager.checkForUpdate()
+        if (update != null && update.hasUpdate) {
+            availableUpdateInfo = update
+            showUpdateDialog = true
+        }
+    }
+
     LaunchedEffect(isRamazanActive) {
         if (!isRamazanActive && selectedTab == "ramazan") {
             selectedTab = "home"
@@ -314,6 +329,13 @@ fun AzanScreen(viewModel: AzanViewModel, uiState: com.example.ui.UIState, modifi
             onLangSelect = { viewModel.setLanguage(it) }
         )
     } else {
+        if (showUpdateDialog && availableUpdateInfo != null) {
+            UpdateDialog(
+                updateInfo = availableUpdateInfo!!,
+                language = uiState.language,
+                onDismiss = { showUpdateDialog = false }
+            )
+        }
         Scaffold(
             modifier = modifier.fillMaxSize(),
             containerColor = Color.Black,
@@ -397,6 +419,33 @@ fun AzanScreen(viewModel: AzanViewModel, uiState: com.example.ui.UIState, modifi
                             },
                             onLanguageSelect = { viewModel.setLanguage(it) },
                             onTogglePrayer = { month, day, prayerName ->
+                                val now = Calendar.getInstance(TimeZone.getTimeZone("Asia/Kolkata"))
+                                val todayM = now.get(Calendar.MONTH) + 1
+                                val todayD = now.get(Calendar.DAY_OF_MONTH)
+                                if (month == todayM && day == todayD) {
+                                    val isFriday = now.get(Calendar.DAY_OF_WEEK) == Calendar.FRIDAY
+                                    val jammatTimeStr = getEffectiveJammatTime(prayerName, "12:00", uiState.customJammatTimes, isFriday, uiState.selectedMasjid)
+                                    val (isUnlocked, unlockFormatted) = checkPrayerUnlocked(jammatTimeStr, "12:00", now)
+                                    val currentLog = uiState.allLogs.find { it.month == month && it.day == day }
+                                    val isAlreadyPrayed = when (prayerName.lowercase()) {
+                                        "fajr" -> currentLog?.fajrPrayed == true
+                                        "dhuhr", "zohr", "jum'ah" -> currentLog?.dhuhrPrayed == true
+                                        "asr" -> currentLog?.asrPrayed == true
+                                        "maghrib" -> currentLog?.maghribPrayed == true
+                                        "isha" -> currentLog?.ishaPrayed == true
+                                        else -> false
+                                    }
+                                    if (!isAlreadyPrayed && !isUnlocked) {
+                                        val jammatDisplay = formatTo12Hour(jammatTimeStr)
+                                        val msg = when (uiState.language) {
+                                            "ur" -> "حاضری کا نشان جماعت ($jammatDisplay) کے 10 منٹ بعد ($unlockFormatted پر) فعال ہوگا۔"
+                                            "hi" -> "टिक मार्क जमात ($jammatDisplay) के 10 मिनट बाद ($unlockFormatted पर) चालू होगा।"
+                                            else -> "Tick mark will unlock at $unlockFormatted (10 min after $jammatDisplay jammat)."
+                                        }
+                                        android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_SHORT).show()
+                                        return@TrackerBoardContent
+                                    }
+                                }
                                 viewModel.togglePrayerForDate(month, day, prayerName)
                             },
                             onRestorePoints = { points ->
@@ -1325,6 +1374,13 @@ fun AzanList(viewModel: AzanViewModel, uiState: com.example.ui.UIState, modifier
                 ""
             }
             
+            // Check if prayer is unlocked: active ONLY 10 minutes after Jammat time!
+            val (isPrayerUnlocked, unlockTimeFormatted) = if (isToday && triple.first != "Tahajjud") {
+                checkPrayerUnlocked(jammatTimeStr, triple.third)
+            } else {
+                Pair(true, "")
+            }
+
             // Ongoing if current time is between Azan and Jamaat
             val currentMinutes = Calendar.getInstance(TimeZone.getTimeZone("Asia/Kolkata")).let { it.get(Calendar.HOUR_OF_DAY) * 60 + it.get(Calendar.MINUTE) }
             val azanMin = triple.third.split(":").let { if (it.size >= 2) (it[0].toIntOrNull() ?: 0) * 60 + (it[1].toIntOrNull() ?: 0) else 0 }
@@ -1343,6 +1399,7 @@ fun AzanList(viewModel: AzanViewModel, uiState: com.example.ui.UIState, modifier
                 isOngoing = isOngoing,
                 icon = icons[index],
                 prayed = prayedList[index],
+                isPrayerUnlocked = isPrayerUnlocked,
                 expanded = isExpanded,
                 showAudioToggle = triple.first != "Tahajjud",
                 onHeaderClick = {
@@ -1352,17 +1409,14 @@ fun AzanList(viewModel: AzanViewModel, uiState: com.example.ui.UIState, modifier
                 onToggle = { enabled -> viewModel.toggleAzan(triple.first, enabled) },
                 onPrayedToggle = {
                     if (isToday && !prayedList[index]) {
-                        val prayerCal = parseTimeToCalendar(triple.third, Calendar.getInstance(TimeZone.getTimeZone("Asia/Kolkata"))).apply {
-                            add(Calendar.MINUTE, 20)
-                        }
-                        val now = Calendar.getInstance(TimeZone.getTimeZone("Asia/Kolkata"))
-                        if (now.before(prayerCal)) {
-                            val msg = String.format(strings.prayerTimeNotArrivedToast, triple.second, triple.third)
-                            android.widget.Toast.makeText(
-                                context,
-                                msg,
-                                android.widget.Toast.LENGTH_SHORT
-                            ).show()
+                        if (!isPrayerUnlocked) {
+                            val jammatDisplay = formatTo12Hour(if (jammatTimeStr.isNotBlank()) jammatTimeStr else triple.third)
+                            val msg = when (uiState.language) {
+                                "ur" -> "${triple.second} کی جماعت $jammatDisplay پر ہے۔ حاضری کا نشان جماعت کے 10 منٹ بعد ($unlockTimeFormatted پر) فعال ہوگا۔"
+                                "hi" -> "${triple.second} जमात $jammatDisplay बजे है। टिक मार्क जमात के 10 मिनट बाद ($unlockTimeFormatted पर) चालू होगा।"
+                                else -> "${triple.second} jammat is at $jammatDisplay. Tick mark will unlock at $unlockTimeFormatted (10 min after jammat)."
+                            }
+                            android.widget.Toast.makeText(context, msg, android.widget.Toast.LENGTH_LONG).show()
                             return@AzanSlot
                         }
                     }
@@ -1430,6 +1484,7 @@ fun AzanSlot(
     isOngoing: Boolean = false,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     prayed: Boolean,
+    isPrayerUnlocked: Boolean = true,
     expanded: Boolean,
     onHeaderClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -1628,12 +1683,36 @@ fun AzanSlot(
                     }
                     
                     IconButton(onClick = onPrayedToggle, modifier = Modifier.size(32.dp)) {
-                        Icon(
-                            imageVector = if (prayed) Icons.Filled.CheckCircle else Icons.Outlined.CheckCircle,
-                            contentDescription = "Mark as Prayed",
-                            tint = if (prayed) Color(0xFF25D366) else TextMuted,
-                            modifier = Modifier.size(22.dp)
-                        )
+                        if (prayed) {
+                            Icon(
+                                imageVector = Icons.Filled.CheckCircle,
+                                contentDescription = "Marked as Prayed",
+                                tint = Color(0xFF25D366),
+                                modifier = Modifier.size(22.dp)
+                            )
+                        } else if (!isPrayerUnlocked) {
+                            Box(
+                                modifier = Modifier
+                                    .size(22.dp)
+                                    .background(Color.White.copy(alpha = 0.08f), CircleShape)
+                                    .border(1.dp, Color.White.copy(alpha = 0.2f), CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Lock,
+                                    contentDescription = "Locked until 10 min after jammat",
+                                    tint = Color.White.copy(alpha = 0.35f),
+                                    modifier = Modifier.size(13.dp)
+                                )
+                            }
+                        } else {
+                            Icon(
+                                imageVector = Icons.Outlined.CheckCircle,
+                                contentDescription = "Mark as Prayed",
+                                tint = TextMuted,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
                     }
                     
                     if (showAudioToggle) {
@@ -1978,6 +2057,38 @@ fun calculateJammatTime(systemName: String, azanTime24: String, isFriday: Boolea
     val jammatH = totalMins / 60
     val jammatM = totalMins % 60
     return String.format(java.util.Locale.US, "%02d:%02d", jammatH, jammatM)
+}
+
+fun checkPrayerUnlocked(
+    jammatTime24: String,
+    azanTime24: String,
+    now: Calendar = Calendar.getInstance(TimeZone.getTimeZone("Asia/Kolkata"))
+): Pair<Boolean, String> {
+    val timeToUse = if (jammatTime24.isNotBlank() && jammatTime24.contains(":")) {
+        jammatTime24.trim()
+    } else {
+        azanTime24.trim()
+    }
+    if (!timeToUse.contains(":")) return Pair(true, "")
+    val parts = timeToUse.split(":")
+    val rawH = parts.getOrNull(0)?.toIntOrNull() ?: return Pair(true, "")
+    val rawM = parts.getOrNull(1)?.toIntOrNull() ?: return Pair(true, "")
+    // Convert 12h afternoon time to 24h if user entered e.g. 1:30 for Jumah / Zohar
+    val h = when {
+        rawH in 1..11 && (timeToUse == jammatTime24 && rawH in 1..6) -> rawH + 12
+        else -> rawH
+    }
+    val jammatTotalMinutes = h * 60 + rawM
+    val unlockTotalMinutes = jammatTotalMinutes + 10 // Active ONLY 10 min after jammat!
+
+    val currentTotalMinutes = now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE)
+
+    val unlockH = (unlockTotalMinutes / 60) % 24
+    val unlockM = unlockTotalMinutes % 60
+    val unlockFormatted = formatTo12Hour(String.format(java.util.Locale.US, "%02d:%02d", unlockH, unlockM))
+
+    val isUnlocked = currentTotalMinutes >= unlockTotalMinutes
+    return Pair(isUnlocked, unlockFormatted)
 }
 
 fun getEffectiveJammatTime(
