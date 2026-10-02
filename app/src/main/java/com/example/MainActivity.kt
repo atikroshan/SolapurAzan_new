@@ -3,6 +3,7 @@ package com.example
 import android.Manifest
 import android.content.Intent
 import android.net.Uri
+import android.widget.Toast
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -240,6 +241,19 @@ fun AzanScreen(viewModel: AzanViewModel, uiState: com.example.ui.UIState, modifi
     LaunchedEffect(isRamazanActive) {
         if (!isRamazanActive && selectedTab == "ramazan") {
             selectedTab = "home"
+        }
+    }
+
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                viewModel.syncGoogleSheet()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
 
@@ -2744,7 +2758,14 @@ fun AdminPanelScreen(
                 prayer = prayer,
                 onDismiss = { editingPrayer = null },
                 onSave = { newAzan, newJammat ->
-                    viewModel.updatePrayerLocally(prayer.systemName, newAzan, newJammat)
+                    Toast.makeText(context, "Updating timings for all mobiles...", Toast.LENGTH_SHORT).show()
+                    viewModel.updatePrayerLocally(prayer.systemName, newAzan, newJammat) { success, _ ->
+                        if (success) {
+                            Toast.makeText(context, "Time update ho gaya! Sabhi mobile par time badal chuka hai.", Toast.LENGTH_LONG).show()
+                        } else {
+                            Toast.makeText(context, "Time save ho gaya.", Toast.LENGTH_SHORT).show()
+                        }
+                    }
                     editingPrayer = null
                 }
             )
@@ -3758,7 +3779,18 @@ fun EditPrayerTimingDialog(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Text(
+                    text = "OK / DONE dabate hi sabhi mobile mein ek sath naya time change ho jayega",
+                    fontSize = 11.5.sp,
+                    color = Color(0xFF86EFAC),
+                    textAlign = TextAlign.Center,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(14.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -3789,7 +3821,7 @@ fun EditPrayerTimingDialog(
                             onSave(validAzan, validJammat)
                         },
                         modifier = Modifier
-                            .weight(1f)
+                            .weight(1.2f)
                             .height(48.dp),
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(
@@ -3797,7 +3829,7 @@ fun EditPrayerTimingDialog(
                             contentColor = Color(0xFF0F172A)
                         )
                     ) {
-                        Text("Save Timings", fontSize = 14.sp, fontWeight = FontWeight.Black)
+                        Text("OK / DONE", fontSize = 15.sp, fontWeight = FontWeight.Black)
                     }
                 }
             }

@@ -98,32 +98,14 @@ class AzanViewModel(
                 val csv = GoogleSheetMasjidSync.fetchCsv()
                 val parsed = GoogleSheetMasjidSync.parseCsv(csv)
                 if (parsed.isNotEmpty()) {
-                    val localEditedIds = if (forceOverwriteLocal) {
-                        prefs.clearAllLocalAdminOverrides()
-                        emptySet()
-                    } else {
-                        prefs.localAdminEditedMasajidFlow.firstOrNull() ?: emptySet()
-                    }
-                    val currentLocalMasajid = _masajidList.value
-                    val mergedList = if (localEditedIds.isNotEmpty()) {
-                        parsed.map { remoteMasjid ->
-                            if (localEditedIds.contains(remoteMasjid.id)) {
-                                val local = currentLocalMasajid.find { it.id == remoteMasjid.id }
-                                local ?: remoteMasjid
-                            } else {
-                                remoteMasjid
-                            }
-                        }
-                    } else {
-                        parsed
-                    }
-                    MasjidRepository.setDynamicMasajid(mergedList)
-                    _masajidList.value = mergedList
-                    val newCsv = GoogleSheetMasjidSync.buildCsv(mergedList)
+                    MasjidRepository.setDynamicMasajid(parsed)
+                    _masajidList.value = parsed
+                    val newCsv = GoogleSheetMasjidSync.buildCsv(parsed)
                     prefs.setCachedGoogleSheetCsv(newCsv)
+                    prefs.clearAllLocalAdminOverrides()
                     val currentSelectedId = prefs.selectedMasjidIdFlow.firstOrNull()
-                    if (currentSelectedId == null || mergedList.none { it.id == currentSelectedId }) {
-                        prefs.setSelectedMasjidId(mergedList.first().id)
+                    if (currentSelectedId == null || parsed.none { it.id == currentSelectedId }) {
+                        prefs.setSelectedMasjidId(parsed.first().id)
                     }
                 }
             } catch (e: Exception) {
@@ -346,7 +328,8 @@ class AzanViewModel(
     fun updatePrayerLocally(
         prayerName: String,
         newAzanTime: String,
-        newJammatTime: String
+        newJammatTime: String,
+        onComplete: ((Boolean, String) -> Unit)? = null
     ) {
         val cal = _currentCalendar.value
         val m = cal.get(Calendar.MONTH) + 1
@@ -374,7 +357,6 @@ class AzanViewModel(
             prefs.setSelectedMasjidId(updatedMasjid.id)
             val newCsv = GoogleSheetMasjidSync.buildCsv(all)
             prefs.setCachedGoogleSheetCsv(newCsv)
-            prefs.addLocalAdminEditedMasjid(updatedMasjid.id)
 
             if (prayerName.equals("Jumah", ignoreCase = true) || prayerName.equals("Jum'ah", ignoreCase = true)) {
                 prefs.setCustomJumahAzan(newAzanTime)
@@ -383,6 +365,22 @@ class AzanViewModel(
                 val dbName = if (prayerName.equals("Zohar", ignoreCase = true)) "dhuhr" else prayerName
                 repository.updatePrayerTime(m, d, dbName, newAzanTime, applyToAll = true)
                 prefs.setCustomJammatTime(dbName, newJammatTime)
+            }
+
+            // Direct cloud sync: Update central Google Sheet automatically so ALL mobiles update together!
+            try {
+                val scriptUrl = prefs.appsScriptUrlFlow.firstOrNull()?.trim() ?: GoogleSheetMasjidSync.APPS_SCRIPT_WEBAPP_URL
+                val (success, msg) = GoogleSheetMasjidSync.updateRemoteGoogleSheet(
+                    masjidId = curMasjid.id,
+                    prayerName = prayerName,
+                    azanTime = newAzanTime,
+                    jammatTime = newJammatTime,
+                    webAppUrl = scriptUrl
+                )
+                prefs.clearAllLocalAdminOverrides()
+                onComplete?.invoke(success, msg)
+            } catch (e: Exception) {
+                onComplete?.invoke(false, e.localizedMessage ?: "Sync error")
             }
         }
     }
