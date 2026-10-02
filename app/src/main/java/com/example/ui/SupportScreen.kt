@@ -175,74 +175,91 @@ fun SupportScreen(
                     )
                 }
 
-                // 2. Official WhatsApp Icon & Card
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(46.dp)
-                        .clickable { openWhatsApp() },
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF0F1E17)),
-                    border = BorderStroke(1.dp, Color(0xFF25D366).copy(alpha = 0.5f))
+                // 2. Divided 2-Column Slot: Left = WhatsApp Support, Right = Request Add Masjid
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Row(
+                    // Left Column: Official WhatsApp Support
+                    Card(
                         modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            .weight(1f)
+                            .height(74.dp)
+                            .clickable { openWhatsApp() },
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF0F1E17)),
+                        border = BorderStroke(1.dp, Color(0xFF25D366).copy(alpha = 0.55f))
                     ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_whatsapp),
-                            contentDescription = "WhatsApp",
-                            tint = Color.Unspecified,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Text(
-                            text = when (uiState.language) {
-                                "ur" -> "مدد یا فیڈ بیک کے لیے واٹس ایپ پر چیٹ کریں"
-                                "hi" -> "सपोर्ट और सुझाव के लिए व्हाट्सएप पर चैट करें"
-                                else -> "Tap to chat on WhatsApp for support / feedback"
-                            },
-                            fontSize = 11.5.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White,
-                            modifier = Modifier.weight(1f)
-                        )
-                        Icon(
-                            imageVector = Icons.Default.ChevronRight,
-                            contentDescription = null,
-                            tint = Color(0xFF25D366),
-                            modifier = Modifier.size(16.dp)
-                        )
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 6.dp, vertical = 8.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_whatsapp),
+                                contentDescription = "WhatsApp",
+                                tint = Color.Unspecified,
+                                modifier = Modifier.size(30.dp)
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = when (uiState.language) {
+                                    "ur" -> "سپورٹ اور فیڈبیک"
+                                    "hi" -> "सपोर्ट और सुझाव"
+                                    else -> "Support & Feedback"
+                                },
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White,
+                                textAlign = TextAlign.Center,
+                                maxLines = 1
+                            )
+                        }
+                    }
+
+                    // Right Column: Request Add New Masjid
+                    Card(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(74.dp)
+                            .clickable { showAddMasjidDialog = true },
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF111827)),
+                        border = BorderStroke(1.dp, primaryGold.copy(alpha = 0.55f))
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 6.dp, vertical = 8.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.AddLocationAlt,
+                                contentDescription = "Request Add Masjid",
+                                tint = primaryGold,
+                                modifier = Modifier.size(30.dp)
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = when (uiState.language) {
+                                    "ur" -> "نئی مسجد شامل کریں"
+                                    "hi" -> "नई मस्जिद जोड़ें"
+                                    else -> "Request Add Masjid"
+                                },
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = primaryGold,
+                                textAlign = TextAlign.Center,
+                                maxLines = 1
+                            )
+                        }
                     }
                 }
 
-                // 3. Request To Add New Masjid Button (No icons, default black background)
-                Button(
-                    onClick = { showAddMasjidDialog = true },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(38.dp),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF111827)
-                    ),
-                    border = BorderStroke(1.dp, primaryGold.copy(alpha = 0.5f))
-                ) {
-                    Text(
-                        text = when (uiState.language) {
-                            "ur" -> "نئی مسجد شامل کرنے کی درخواست"
-                            "hi" -> "नई मस्जिद जोड़ने का अनुरोध"
-                            else -> "Request To Add New Masjid"
-                        },
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = primaryGold
-                    )
-                }
-
-                // 4. Scanner Section: Clean on background (Brown card slot removed!)
+                // 3. Scanner Section: Clean on background (Enlarged QR as requested)
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -258,13 +275,13 @@ fun SupportScreen(
                         textAlign = TextAlign.Center
                     )
 
-                    // Flat QR Image with clean rounded border
+                    // Flat QR Image with clean rounded border - Enlarge to 175dp
                     Box(
                         modifier = Modifier
-                            .size(145.dp)
+                            .size(175.dp)
                             .clip(RoundedCornerShape(12.dp))
                             .background(Color.White)
-                            .border(1.5.dp, primaryGold.copy(alpha = 0.6f), RoundedCornerShape(12.dp))
+                            .border(1.5.dp, primaryGold.copy(alpha = 0.65f), RoundedCornerShape(12.dp))
                             .padding(6.dp),
                         contentAlignment = Alignment.Center
                     ) {

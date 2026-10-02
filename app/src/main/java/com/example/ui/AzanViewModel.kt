@@ -370,7 +370,8 @@ class AzanViewModel(
                 all.add(0, updatedMasjid)
             }
             MasjidRepository.setDynamicMasajid(all)
-            _masajidList.value = all
+            _masajidList.value = all.toList()
+            prefs.setSelectedMasjidId(updatedMasjid.id)
             val newCsv = GoogleSheetMasjidSync.buildCsv(all)
             prefs.setCachedGoogleSheetCsv(newCsv)
             prefs.addLocalAdminEditedMasjid(updatedMasjid.id)

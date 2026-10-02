@@ -2558,15 +2558,15 @@ fun AdminPanelScreen(
 
     val timings = uiState.todayTimings
     val fajrAzan = curMasjid.fajrAzanFixed ?: timings?.fajr ?: "05:40"
-    val zoharAzan = if (isFridayToday) curMasjid.jumahAzanTime else (curMasjid.zoharAzanFixed ?: timings?.dhuhr ?: "13:15")
-    val jumahAzan = curMasjid.jumahAzanTime
+    val zoharAzan = curMasjid.zoharAzanFixed ?: timings?.dhuhr ?: "13:15"
+    val jumahAzan = curMasjid.jumahAzanTime.ifBlank { "12:30" }
     val asrAzan = curMasjid.asrAzanFixed ?: timings?.asr ?: "17:17"
     val maghribAzan = curMasjid.maghribAzanFixed ?: timings?.maghrib ?: "18:10"
     val ishaAzan = curMasjid.ishaAzanFixed ?: timings?.isha ?: "19:50"
 
     val fajrJammat = curMasjid.fajrJammatFixed ?: getEffectiveJammatTime("Fajr", fajrAzan, uiState.customJammatTimes, false, curMasjid)
     val zoharJammat = curMasjid.zoharJammatFixed ?: getEffectiveJammatTime("Dhuhr", zoharAzan, uiState.customJammatTimes, false, curMasjid)
-    val jumahJammat = curMasjid.jumahJammatTime
+    val jumahJammat = curMasjid.jumahJammatTime.ifBlank { "13:00" }
     val asrJammat = curMasjid.asrJammatFixed ?: getEffectiveJammatTime("Asr", asrAzan, uiState.customJammatTimes, false, curMasjid)
     val maghribJammat = curMasjid.maghribJammatFixed ?: getEffectiveJammatTime("Maghrib", maghribAzan, uiState.customJammatTimes, false, curMasjid)
     val ishaJammat = curMasjid.ishaJammatFixed ?: getEffectiveJammatTime("Isha", ishaAzan, uiState.customJammatTimes, false, curMasjid)
