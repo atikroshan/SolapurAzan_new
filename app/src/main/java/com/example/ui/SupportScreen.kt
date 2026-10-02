@@ -108,6 +108,7 @@ fun SupportScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
+                .navigationBarsPadding()
                 .padding(horizontal = 16.dp, vertical = 6.dp)
         ) {
             // Top Bar: Back Button (Left) + Same 3 Language Buttons from Home Page (Right)
@@ -217,7 +218,38 @@ fun SupportScreen(
                     }
                 }
 
-                // 3. Scanner Section: Flat QR image inside clean card slot
+                // 3. Request To Add New Masjid Button (Moved above QR)
+                Button(
+                    onClick = { showAddMasjidDialog = true },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(38.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF0F766E)
+                    ),
+                    border = BorderStroke(1.dp, Color(0xFF5EEAD4))
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.AddLocationAlt,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = when (uiState.language) {
+                            "ur" -> "➕ نئی مسجد شامل کرنے کی درخواست"
+                            "hi" -> "➕ नई मस्जिद जोड़ने का अनुरोध"
+                            else -> "➕ Request To Add New Masjid"
+                        },
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
+
+                // 4. Scanner Section: Flat QR image inside clean card slot
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp),
@@ -292,37 +324,6 @@ fun SupportScreen(
                     }
                 }
 
-                // 4. Request To Add New Masjid Button
-                Button(
-                    onClick = { showAddMasjidDialog = true },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(38.dp),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF0F766E)
-                    ),
-                    border = BorderStroke(1.dp, Color(0xFF5EEAD4))
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.AddLocationAlt,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = when (uiState.language) {
-                            "ur" -> "➕ نئی مسجد شامل کرنے کی درخواست"
-                            "hi" -> "➕ नई मस्जिद जोड़ने का अनुरोध"
-                            else -> "➕ Request To Add New Masjid"
-                        },
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                }
-
                 // 5. Rating Section: Compact Side-by-Side layout
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -370,7 +371,7 @@ fun SupportScreen(
                             Text(
                                 text = if (userRating == 0) {
                                     when (uiState.language) {
-                                        "ur" -> "ریٹنگ کے لیے ٹیپ کریں"
+                                        "ur" -> "ریٹنگ के लिए टैप करें"
                                         "hi" -> "रेटिंग के लिए टैप करें"
                                         else -> "Tap stars to rate"
                                     }
@@ -431,7 +432,7 @@ fun SupportScreen(
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(1.dp),
-                    modifier = Modifier.padding(bottom = 4.dp)
+                    modifier = Modifier.padding(bottom = 8.dp)
                 ) {
                     Text(
                         text = "v${BuildConfig.VERSION_NAME}",
