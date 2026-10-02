@@ -21,6 +21,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.Mosque
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -151,7 +152,7 @@ fun SupportScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
-                // 1. App Title Header (3x Larger as requested)
+                // 1. App Title Header (As-Is Square Logo + Title)
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(14.dp),
@@ -162,9 +163,9 @@ fun SupportScreen(
                         contentDescription = "Azan App Icon",
                         modifier = Modifier
                             .size(76.dp)
-                            .clip(RoundedCornerShape(16.dp))
-                            .border(2.dp, primaryGold, RoundedCornerShape(16.dp)),
-                        contentScale = ContentScale.Crop
+                            .clip(RoundedCornerShape(10.dp))
+                            .border(1.5.dp, primaryGold, RoundedCornerShape(10.dp)),
+                        contentScale = ContentScale.Fit
                     )
                     Text(
                         text = "AZAN TIME",
@@ -184,7 +185,7 @@ fun SupportScreen(
                     Card(
                         modifier = Modifier
                             .weight(1f)
-                            .height(74.dp)
+                            .height(76.dp)
                             .clickable { openWhatsApp() },
                         shape = RoundedCornerShape(14.dp),
                         colors = CardDefaults.cardColors(containerColor = Color(0xFF0F1E17)),
@@ -219,11 +220,11 @@ fun SupportScreen(
                         }
                     }
 
-                    // Right Column: Request Add New Masjid
+                    // Right Column: Request Add New Masjid (Exact Mosque Icon from Home Screen)
                     Card(
                         modifier = Modifier
                             .weight(1f)
-                            .height(74.dp)
+                            .height(76.dp)
                             .clickable { showAddMasjidDialog = true },
                         shape = RoundedCornerShape(14.dp),
                         colors = CardDefaults.cardColors(containerColor = Color(0xFF111827)),
@@ -237,7 +238,7 @@ fun SupportScreen(
                             verticalArrangement = Arrangement.Center
                         ) {
                             Icon(
-                                imageVector = Icons.Default.AddLocationAlt,
+                                imageVector = Icons.Outlined.Mosque,
                                 contentDescription = "Request Add Masjid",
                                 tint = primaryGold,
                                 modifier = Modifier.size(30.dp)
@@ -259,7 +260,7 @@ fun SupportScreen(
                     }
                 }
 
-                // 3. Scanner Section: Clean on background (Enlarged QR as requested)
+                // 3. Scanner Section: Clean on background (Enlarged QR to 200dp as requested)
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -275,13 +276,13 @@ fun SupportScreen(
                         textAlign = TextAlign.Center
                     )
 
-                    // Flat QR Image with clean rounded border - Enlarge to 175dp
+                    // Flat QR Image with clean rounded border - Enlarge to 200dp
                     Box(
                         modifier = Modifier
-                            .size(175.dp)
-                            .clip(RoundedCornerShape(12.dp))
+                            .size(200.dp)
+                            .clip(RoundedCornerShape(14.dp))
                             .background(Color.White)
-                            .border(1.5.dp, primaryGold.copy(alpha = 0.65f), RoundedCornerShape(12.dp))
+                            .border(1.5.dp, primaryGold.copy(alpha = 0.65f), RoundedCornerShape(14.dp))
                             .padding(6.dp),
                         contentAlignment = Alignment.Center
                     ) {
