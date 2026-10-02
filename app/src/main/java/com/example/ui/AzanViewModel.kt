@@ -104,8 +104,21 @@ class AzanViewModel(
                     prefs.setCachedGoogleSheetCsv(newCsv)
                     prefs.clearAllLocalAdminOverrides()
                     val currentSelectedId = prefs.selectedMasjidIdFlow.firstOrNull()
+                    val targetMasjid = if (currentSelectedId != null) {
+                        parsed.find { it.id == currentSelectedId } ?: parsed.first()
+                    } else {
+                        parsed.first()
+                    }
                     if (currentSelectedId == null || parsed.none { it.id == currentSelectedId }) {
-                        prefs.setSelectedMasjidId(parsed.first().id)
+                        prefs.setSelectedMasjidId(targetMasjid.id)
+                    }
+                    targetMasjid.fajrJammatFixed?.let { prefs.setCustomJammatTime("fajr", it) }
+                    targetMasjid.zoharJammatFixed?.let { prefs.setCustomJammatTime("dhuhr", it) }
+                    targetMasjid.asrJammatFixed?.let { prefs.setCustomJammatTime("asr", it) }
+                    targetMasjid.maghribJammatFixed?.let { prefs.setCustomJammatTime("maghrib", it) }
+                    targetMasjid.ishaJammatFixed?.let { prefs.setCustomJammatTime("isha", it) }
+                    if (targetMasjid.jumahJammatTime.isNotBlank()) {
+                        prefs.setCustomJammatTime("jumah", targetMasjid.jumahJammatTime)
                     }
                 }
             } catch (e: Exception) {

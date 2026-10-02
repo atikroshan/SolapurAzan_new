@@ -78,6 +78,9 @@ Password,9595996629,,,,,
         val parts = clean.split(":")
         var h = parts[0].toIntOrNull() ?: return clean
         val m = parts[1].toIntOrNull() ?: return clean
+        if (h in 0..23 && (h >= 13 || (h == 12 && isPm))) {
+            return String.format(Locale.US, "%02d:%02d", h, m)
+        }
         if (isPm) {
             if (h in 1..11) {
                 h += 12
@@ -550,21 +553,21 @@ function handleRequest(e) {
 
         fun flushCurrent() {
             if (currentName.isNotBlank() && currentId.isNotBlank()) {
-                // Azan: Fajr (AM), Zohar (PM), Asr (PM), Maghrib (PM), Isha (PM), Jummah (PM/12)
-                val fAzan = azanTimes.getOrNull(0)?.let { to24Hr(it, false) } ?: "05:40"
-                val zAzan = azanTimes.getOrNull(1)?.let { to24Hr(it, true) } ?: "13:15"
-                val aAzan = azanTimes.getOrNull(2)?.let { to24Hr(it, true) } ?: "17:17"
-                val mAzan = azanTimes.getOrNull(3)?.let { to24Hr(it, true) } ?: "18:10"
-                val iAzan = azanTimes.getOrNull(4)?.let { to24Hr(it, true) } ?: "19:50"
-                val jAzan = azanTimes.getOrNull(5)?.let { to24Hr(it, false) } ?: "12:30"
+                // Azan: Fajr (AM), Zohar (PM), Asr (PM), Maghrib (PM), Isha (PM), Jummah (12:30 PM)
+                val fAzan = azanTimes.getOrNull(0)?.trim()?.takeIf { it.isNotEmpty() }?.let { to24Hr(it, false) } ?: "05:40"
+                val zAzan = azanTimes.getOrNull(1)?.trim()?.takeIf { it.isNotEmpty() }?.let { to24Hr(it, true) } ?: "13:15"
+                val aAzan = azanTimes.getOrNull(2)?.trim()?.takeIf { it.isNotEmpty() }?.let { to24Hr(it, true) } ?: "17:17"
+                val mAzan = azanTimes.getOrNull(3)?.trim()?.takeIf { it.isNotEmpty() }?.let { to24Hr(it, true) } ?: "18:10"
+                val iAzan = azanTimes.getOrNull(4)?.trim()?.takeIf { it.isNotEmpty() }?.let { to24Hr(it, true) } ?: "19:50"
+                val jAzan = azanTimes.getOrNull(5)?.trim()?.takeIf { it.isNotEmpty() }?.let { to24Hr(it, true) } ?: "12:30"
 
                 // Jammat: Fajr (AM), Zohar (PM), Asr (PM), Maghrib (PM), Isha (PM), Jummah (PM)
-                val fJammat = jammatTimes.getOrNull(0)?.let { to24Hr(it, false) } ?: "06:15"
-                val zJammat = jammatTimes.getOrNull(1)?.let { to24Hr(it, true) } ?: "13:30"
-                val aJammat = jammatTimes.getOrNull(2)?.let { to24Hr(it, true) } ?: "17:30"
-                val mJammat = jammatTimes.getOrNull(3)?.let { to24Hr(it, true) } ?: "18:12"
-                val iJammat = jammatTimes.getOrNull(4)?.let { to24Hr(it, true) } ?: "19:59"
-                val jJammat = jammatTimes.getOrNull(5)?.let { to24Hr(it, true) } ?: "13:30"
+                val fJammat = jammatTimes.getOrNull(0)?.trim()?.takeIf { it.isNotEmpty() }?.let { to24Hr(it, false) } ?: "06:15"
+                val zJammat = jammatTimes.getOrNull(1)?.trim()?.takeIf { it.isNotEmpty() }?.let { to24Hr(it, true) } ?: "13:30"
+                val aJammat = jammatTimes.getOrNull(2)?.trim()?.takeIf { it.isNotEmpty() }?.let { to24Hr(it, true) } ?: "17:30"
+                val mJammat = jammatTimes.getOrNull(3)?.trim()?.takeIf { it.isNotEmpty() }?.let { to24Hr(it, true) } ?: "18:12"
+                val iJammat = jammatTimes.getOrNull(4)?.trim()?.takeIf { it.isNotEmpty() }?.let { to24Hr(it, true) } ?: "19:59"
+                val jJammat = jammatTimes.getOrNull(5)?.trim()?.takeIf { it.isNotEmpty() }?.let { to24Hr(it, true) } ?: "13:30"
 
                 val directPhoto = extractGoogleDriveDirectUrl(currentPhoto)
 
@@ -622,9 +625,9 @@ function handleRequest(e) {
             } else if (first.equals("Masjid Photo", ignoreCase = true)) {
                 currentPhoto = tokens.getOrElse(1) { "" }
             } else if (first.equals("Azan", ignoreCase = true)) {
-                azanTimes = tokens.drop(1).filter { it.isNotEmpty() }
+                azanTimes = tokens.drop(1)
             } else if (first.equals("Jammat", ignoreCase = true)) {
-                jammatTimes = tokens.drop(1).filter { it.isNotEmpty() }
+                jammatTimes = tokens.drop(1)
             } else if (first.equals("Admin ID", ignoreCase = true) || first.equals("AdminID", ignoreCase = true)) {
                 currentAdminId = tokens.getOrElse(1) { "admin" }
             } else if (first.equals("Password", ignoreCase = true)) {

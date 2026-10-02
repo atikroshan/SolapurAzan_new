@@ -1955,18 +1955,13 @@ fun getEffectiveJammatTime(
     isFriday: Boolean = false,
     masjid: MasjidItem? = null
 ): String {
-    if (systemName.equals("Jumah", ignoreCase = true) || systemName.equals("Jum'ah", ignoreCase = true) || (systemName.equals("Dhuhr", ignoreCase = true) && isFriday)) {
-        val customJumah = customJammatMap["jumah"]
-        if (!customJumah.isNullOrEmpty()) {
-            return customJumah
-        }
-        return masjid?.jumahJammatTime ?: "13:30"
-    }
-    val custom = customJammatMap[systemName.lowercase()]
-    if (!custom.isNullOrEmpty()) {
-        return custom
-    }
+    // 1. Check masjid's fixed Jammat time FIRST (Primary Source of Truth)
     if (masjid != null) {
+        if (systemName.equals("Jumah", ignoreCase = true) || systemName.equals("Jum'ah", ignoreCase = true) || (systemName.equals("Dhuhr", ignoreCase = true) && isFriday)) {
+            if (masjid.jumahJammatTime.isNotBlank()) {
+                return masjid.jumahJammatTime
+            }
+        }
         val fixed = when (systemName.lowercase()) {
             "fajr" -> masjid.fajrJammatFixed
             "dhuhr", "zohar" -> masjid.zoharJammatFixed
@@ -1978,6 +1973,19 @@ fun getEffectiveJammatTime(
         if (!fixed.isNullOrBlank()) {
             return fixed
         }
+    }
+
+    // 2. Custom local override if set
+    if (systemName.equals("Jumah", ignoreCase = true) || systemName.equals("Jum'ah", ignoreCase = true) || (systemName.equals("Dhuhr", ignoreCase = true) && isFriday)) {
+        val customJumah = customJammatMap["jumah"]
+        if (!customJumah.isNullOrEmpty()) {
+            return customJumah
+        }
+        return masjid?.jumahJammatTime ?: "13:30"
+    }
+    val custom = customJammatMap[systemName.lowercase()]
+    if (!custom.isNullOrEmpty()) {
+        return custom
     }
     if (masjid != null && azanTime24.contains(":")) {
         val offset = when (systemName.lowercase()) {
