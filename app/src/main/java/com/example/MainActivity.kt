@@ -108,18 +108,6 @@ import com.example.ui.MasjidSelectorDropdown
 
 class MainActivity : ComponentActivity() {
 
-    private var isMainScreenOffRegistered = false
-    private val mainScreenOffReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == Intent.ACTION_SCREEN_OFF) {
-                // Requirement: Single power press stops playing audio immediately
-                if (com.example.service.AzanForegroundService.isPlayingAzan.value) {
-                    com.example.service.AzanForegroundService.stopService(this@MainActivity)
-                }
-            }
-        }
-    }
-
     private fun wakeAndShowOverLock() {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
@@ -218,39 +206,6 @@ class MainActivity : ComponentActivity() {
         wakeAndShowOverLock()
     }
 
-    override fun onStart() {
-        super.onStart()
-        if (!isMainScreenOffRegistered) {
-            try {
-                val filter = IntentFilter(Intent.ACTION_SCREEN_OFF)
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    androidx.core.content.ContextCompat.registerReceiver(
-                        this,
-                        mainScreenOffReceiver,
-                        filter,
-                        androidx.core.content.ContextCompat.RECEIVER_EXPORTED
-                    )
-                } else {
-                    registerReceiver(mainScreenOffReceiver, filter)
-                }
-                isMainScreenOffRegistered = true
-            } catch (e: Throwable) {
-                e.printStackTrace()
-            }
-        }
-    }
-
-    override fun onStop() {
-        super.onStop()
-        if (isMainScreenOffRegistered) {
-            try {
-                unregisterReceiver(mainScreenOffReceiver)
-                isMainScreenOffRegistered = false
-            } catch (e: Throwable) {
-                e.printStackTrace()
-            }
-        }
-    }
 }
 
 @Composable

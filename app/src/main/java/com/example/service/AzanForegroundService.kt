@@ -21,16 +21,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 class AzanForegroundService : Service() {
     private var mediaPlayer: MediaPlayer? = null
     private var wakeLock: android.os.PowerManager.WakeLock? = null
-    private var isScreenReceiverRegistered = false
-
-    private val screenOffReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == Intent.ACTION_SCREEN_OFF) {
-                // User requirement: When phone off/power button is pressed, immediately stop audio
-                stopAzanAudio()
-            }
-        }
-    }
 
     companion object {
         var serviceInstance: AzanForegroundService? = null
@@ -154,60 +144,27 @@ class AzanForegroundService : Service() {
             e.printStackTrace()
         }
 
-        // Requirement: Keep CPU running to ensure audio plays completely
+        // Requirement: Keep CPU running to ensure audio plays completely even in lock mode
         try {
             val pm = getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
-            wakeLock = pm?.newWakeLock(
-                android.os.PowerManager.PARTIAL_WAKE_LOCK,
-                "offlineazan:service_audio_wake"
-            )
-            // Acquire indefinitely, we will release it in onDestroy
-            wakeLock?.acquire()
+            if (wakeLock == null || wakeLock?.isHeld != true) {
+                wakeLock = pm?.newWakeLock(
+                    android.os.PowerManager.PARTIAL_WAKE_LOCK,
+                    "offlineazan:service_audio_wake"
+                )
+                wakeLock?.acquire(15 * 60 * 1000L) // 15 mins max safety timeout
+            }
             startActivity(mainIntent)
         } catch (e: Throwable) {
             e.printStackTrace()
         }
 
-        registerScreenOffReceiver()
         playAzan()
 
         return START_NOT_STICKY
     }
 
-    private fun registerScreenOffReceiver() {
-        if (!isScreenReceiverRegistered) {
-            try {
-                val filter = IntentFilter(Intent.ACTION_SCREEN_OFF)
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    androidx.core.content.ContextCompat.registerReceiver(
-                        this,
-                        screenOffReceiver,
-                        filter,
-                        androidx.core.content.ContextCompat.RECEIVER_EXPORTED
-                    )
-                } else {
-                    registerReceiver(screenOffReceiver, filter)
-                }
-                isScreenReceiverRegistered = true
-            } catch (e: Throwable) {
-                e.printStackTrace()
-            }
-        }
-    }
-
-    private fun unregisterScreenOffReceiver() {
-        if (isScreenReceiverRegistered) {
-            try {
-                unregisterReceiver(screenOffReceiver)
-                isScreenReceiverRegistered = false
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
-    }
-
     fun stopAzanAudio() {
-        unregisterScreenOffReceiver()
         isPlayingAzan.value = false
         currentPlayingPrayerName.value = null
         recordAudioFinished(this, System.currentTimeMillis(), lastAudioPrayerIndex.value)
@@ -225,6 +182,14 @@ class AzanForegroundService : Service() {
             }
             mediaPlayer = null
         }
+        try {
+            if (wakeLock?.isHeld == true) {
+                wakeLock?.release()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        wakeLock = null
         try {
             stopForeground(STOP_FOREGROUND_REMOVE)
         } catch (e: Exception) {
@@ -262,23 +227,27 @@ class AzanForegroundService : Service() {
                 }
             }
 
-            // User requirement: Play once and then close
+            // User requirement: Play once completely in background and then close
             mediaPlayer?.let { player ->
+                try {
+                    player.setWakeMode(applicationContext, android.os.PowerManager.PARTIAL_WAKE_LOCK)
+                    val audioAttributes = AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_ALARM)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                        .build()
+                    player.setAudioAttributes(audioAttributes)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
                 player.isLooping = false
                 isPlayingAzan.value = true
 
                 player.setOnCompletionListener {
-                    isPlayingAzan.value = false
-                    currentPlayingPrayerName.value = null
-                    recordAudioFinished(this@AzanForegroundService, System.currentTimeMillis(), lastAudioPrayerIndex.value)
-                    stopSelf()
+                    stopAzanAudio()
                 }
 
                 player.setOnErrorListener { _, _, _ ->
-                    isPlayingAzan.value = false
-                    currentPlayingPrayerName.value = null
-                    recordAudioFinished(this@AzanForegroundService, System.currentTimeMillis(), lastAudioPrayerIndex.value)
-                    stopSelf()
+                    stopAzanAudio()
                     true
                 }
 
@@ -286,16 +255,10 @@ class AzanForegroundService : Service() {
                     player.start()
                 } catch (e: Exception) {
                     e.printStackTrace()
-                    isPlayingAzan.value = false
-                    currentPlayingPrayerName.value = null
-                    recordAudioFinished(this@AzanForegroundService, System.currentTimeMillis(), lastAudioPrayerIndex.value)
-                    stopSelf()
+                    stopAzanAudio()
                 }
             } ?: run {
-                isPlayingAzan.value = false
-                currentPlayingPrayerName.value = null
-                recordAudioFinished(this, System.currentTimeMillis(), lastAudioPrayerIndex.value)
-                stopSelf()
+                stopAzanAudio()
             }
         }
     }
@@ -305,7 +268,6 @@ class AzanForegroundService : Service() {
         if (serviceInstance == this) {
             serviceInstance = null
         }
-        unregisterScreenOffReceiver()
         
         // Release wake lock if held
         try {
