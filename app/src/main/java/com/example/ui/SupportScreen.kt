@@ -151,27 +151,27 @@ fun SupportScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
-                // 1. App Title Header (Very Compact)
+                // 1. App Title Header (3x Larger as requested)
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.padding(top = 2.dp)
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    modifier = Modifier.padding(top = 2.dp, bottom = 4.dp)
                 ) {
                     Image(
                         painter = painterResource(id = R.drawable.ic_app_logo),
                         contentDescription = "Azan App Icon",
                         modifier = Modifier
-                            .size(28.dp)
-                            .clip(CircleShape)
-                            .border(1.dp, primaryGold, CircleShape),
+                            .size(76.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .border(2.dp, primaryGold, RoundedCornerShape(16.dp)),
                         contentScale = ContentScale.Crop
                     )
                     Text(
                         text = "AZAN TIME",
-                        fontSize = 15.sp,
+                        fontSize = 24.sp,
                         fontWeight = FontWeight.Black,
                         color = primaryGold,
-                        letterSpacing = 1.sp
+                        letterSpacing = 1.5.sp
                     )
                 }
 
@@ -179,7 +179,7 @@ fun SupportScreen(
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(48.dp)
+                        .height(46.dp)
                         .clickable { openWhatsApp() },
                     shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.cardColors(containerColor = Color(0xFF0F1E17)),
@@ -188,23 +188,23 @@ fun SupportScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(horizontal = 12.dp),
+                            .padding(horizontal = 14.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Icon(
                             painter = painterResource(id = R.drawable.ic_whatsapp),
                             contentDescription = "WhatsApp",
-                            tint = Color(0xFF25D366),
-                            modifier = Modifier.size(20.dp)
+                            tint = Color.Unspecified,
+                            modifier = Modifier.size(24.dp)
                         )
                         Text(
                             text = when (uiState.language) {
-                                "ur" -> "مدد یا فیڈ بیک کے لیے واٹس ایپ पर چیٹ کریں"
+                                "ur" -> "مدد یا فیڈ بیک کے لیے واٹس ایپ پر چیٹ کریں"
                                 "hi" -> "सपोर्ट और सुझाव के लिए व्हाट्सएप पर चैट करें"
                                 else -> "Tap to chat on WhatsApp for support / feedback"
                             },
-                            fontSize = 11.sp,
+                            fontSize = 11.5.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.White,
                             modifier = Modifier.weight(1f)
@@ -218,7 +218,7 @@ fun SupportScreen(
                     }
                 }
 
-                // 3. Request To Add New Masjid Button (Moved above QR)
+                // 3. Request To Add New Masjid Button (No icons, default black background)
                 Button(
                     onClick = { showAddMasjidDialog = true },
                     modifier = Modifier
@@ -226,196 +226,152 @@ fun SupportScreen(
                         .height(38.dp),
                     shape = RoundedCornerShape(10.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF0F766E)
+                        containerColor = Color(0xFF111827)
                     ),
-                    border = BorderStroke(1.dp, Color(0xFF5EEAD4))
+                    border = BorderStroke(1.dp, primaryGold.copy(alpha = 0.5f))
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.AddLocationAlt,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = when (uiState.language) {
-                            "ur" -> "➕ نئی مسجد شامل کرنے کی درخواست"
-                            "hi" -> "➕ नई मस्जिद जोड़ने का अनुरोध"
-                            else -> "➕ Request To Add New Masjid"
+                            "ur" -> "نئی مسجد شامل کرنے کی درخواست"
+                            "hi" -> "नई मस्जिद जोड़ने का अनुरोध"
+                            else -> "Request To Add New Masjid"
                         },
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White
+                        color = primaryGold
                     )
                 }
 
-                // 4. Scanner Section: Flat QR image inside clean card slot
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF111827).copy(alpha = 0.95f)),
-                    border = BorderStroke(1.dp, primaryGold.copy(alpha = 0.35f))
+                // 4. Scanner Section: Clean on background (Brown card slot removed!)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 2.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Column(
+                    Text(
+                        text = "For support plz scan n donate",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Black,
+                        color = primaryGold,
+                        textAlign = TextAlign.Center
+                    )
+
+                    // Flat QR Image with clean rounded border
+                    Box(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(8.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                            .size(145.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color.White)
+                            .border(1.5.dp, primaryGold.copy(alpha = 0.6f), RoundedCornerShape(12.dp))
+                            .padding(6.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = "For support plz scan n donate",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Black,
-                            color = primaryGold,
-                            textAlign = TextAlign.Center
+                        Image(
+                            painter = painterResource(id = R.drawable.qr_support_donate),
+                            contentDescription = "Donation QR Code",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Fit
                         )
+                    }
 
-                        // Flat QR Image fit inside holder
-                        Box(
-                            modifier = Modifier
-                                .size(150.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(Color.White)
-                                .padding(4.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Image(
-                                painter = painterResource(id = R.drawable.qr_support_donate),
-                                contentDescription = "Donation QR Code",
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Fit
-                            )
-                        }
-
-                        // Pay via UPI button
-                        Button(
-                            onClick = {
-                                try {
-                                    val upiUri = Uri.parse("upi://pay?pa=9960171516@ybl&pn=A-tek%20Printing%20Press&cu=INR")
-                                    val intent = Intent(Intent.ACTION_VIEW, upiUri)
-                                    context.startActivity(intent)
-                                } catch (e: Exception) {
-                                    Toast.makeText(context, "Scan QR with PhonePe / GPay", Toast.LENGTH_SHORT).show()
-                                }
-                            },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFF1E293B)
-                            ),
-                            shape = RoundedCornerShape(8.dp),
-                            border = BorderStroke(1.dp, primaryGold.copy(alpha = 0.4f)),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                            modifier = Modifier.height(32.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.QrCodeScanner,
-                                contentDescription = null,
-                                tint = primaryGold,
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "Pay via UPI (PhonePe / GPay)",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = primaryGold
-                            )
-                        }
+                    // Pay via UPI button
+                    Button(
+                        onClick = {
+                            try {
+                                val upiUri = Uri.parse("upi://pay?pa=9960171516@ybl&pn=A-tek%20Printing%20Press&cu=INR")
+                                val intent = Intent(Intent.ACTION_VIEW, upiUri)
+                                context.startActivity(intent)
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "Scan QR with PhonePe / GPay", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF1E293B)
+                        ),
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, primaryGold.copy(alpha = 0.4f)),
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
+                        modifier = Modifier.height(30.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.QrCodeScanner,
+                            contentDescription = null,
+                            tint = primaryGold,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Pay via UPI (PhonePe / GPay)",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = primaryGold
+                        )
                     }
                 }
 
-                // 5. Rating Section: Compact Side-by-Side layout
+                // 5. Rating Section: Slim & Professional one-card layout
                 Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF131A29)),
-                    border = BorderStroke(1.dp, Color(0xFFFFD700).copy(alpha = 0.3f))
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(46.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF111827)),
+                    border = BorderStroke(1.dp, Color(0xFFFFD700).copy(alpha = 0.35f))
                 ) {
                     Row(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(8.dp),
+                            .fillMaxSize()
+                            .padding(horizontal = 12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Column(
-                            verticalArrangement = Arrangement.Center,
-                            modifier = Modifier.weight(1.1f)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             Text(
                                 text = when (uiState.language) {
-                                    "ur" -> "ایپ کی ریٹنگ"
-                                    "hi" -> "ऐप रेटिंग"
-                                    else -> "App Rating"
+                                    "ur" -> "ایپ ریٹنگ:"
+                                    "hi" -> "ऐप रेटिंग:"
+                                    else -> "Rating:"
                                 },
                                 fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = primaryGold
+                                fontWeight = FontWeight.Medium,
+                                color = Color.White.copy(alpha = 0.8f)
                             )
-                            Row(
-                                verticalAlignment = Alignment.Bottom
-                            ) {
-                                Text(
-                                    text = String.format(Locale.US, "%.1f", averageRating),
-                                    fontSize = 24.sp,
-                                    fontWeight = FontWeight.Black,
-                                    color = Color(0xFFFFD700)
-                                )
-                                Text(
-                                    text = " / 5.0",
-                                    fontSize = 11.sp,
-                                    color = Color.White.copy(alpha = 0.5f),
-                                    modifier = Modifier.padding(bottom = 3.dp)
-                                )
-                            }
                             Text(
-                                text = if (userRating == 0) {
-                                    when (uiState.language) {
-                                        "ur" -> "ریٹنگ के लिए टैप करें"
-                                        "hi" -> "रेटिंग के लिए टैप करें"
-                                        else -> "Tap stars to rate"
-                                    }
-                                } else {
-                                    when (uiState.language) {
-                                        "ur" -> "شکریہ!"
-                                        "hi" -> "धन्यवाद!"
-                                        else -> "Thank you!"
-                                    }
-                                },
-                                fontSize = 10.sp,
-                                color = Color.White.copy(alpha = 0.6f)
+                                text = String.format(Locale.US, "%.1f", averageRating),
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Black,
+                                color = Color(0xFFFFD700)
                             )
                         }
 
-                        // Stars row on right side of rating card
+                        // Compact Stars
                         Row(
-                            horizontalArrangement = Arrangement.spacedBy(3.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.weight(1.9f)
+                            horizontalArrangement = Arrangement.spacedBy(2.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             for (starIndex in 1..5) {
                                 val isFilled = starIndex <= userRating
                                 Icon(
                                     imageVector = if (isFilled) Icons.Default.Star else Icons.Outlined.StarBorder,
                                     contentDescription = "Star $starIndex",
-                                    tint = if (isFilled) Color(0xFFFFD700) else Color(0xFFFFD700).copy(alpha = 0.4f),
+                                    tint = if (isFilled) Color(0xFFFFD700) else Color(0xFFFFD700).copy(alpha = 0.35f),
                                     modifier = Modifier
-                                        .size(28.dp)
+                                        .size(20.dp)
                                         .clickable {
                                             userRating = starIndex
                                             prefs.edit().putInt("saved_stars", starIndex).apply()
-
-                                            // Recalculate average immediately
                                             val newTotalReviews = totalReviews + 1
                                             val newAvg = ((averageRating * totalReviews) + starIndex) / newTotalReviews
                                             averageRating = newAvg
                                             totalReviews = newTotalReviews
-
-                                            // Save to Google Sheet tab "rating" in background
                                             coroutineScope.launch {
                                                 GoogleSheetMasjidSync.submitRating(starIndex)
                                             }
-
                                             Toast.makeText(
                                                 context,
                                                 "⭐⭐⭐⭐⭐ Thank you for rating $starIndex stars!",
