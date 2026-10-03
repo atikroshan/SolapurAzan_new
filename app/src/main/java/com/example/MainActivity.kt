@@ -394,7 +394,7 @@ fun AzanScreen(viewModel: AzanViewModel, uiState: com.example.ui.UIState, modifi
                                 if (month == todayM && day == todayD) {
                                     val isFriday = now.get(Calendar.DAY_OF_WEEK) == Calendar.FRIDAY
                                     val jammatTimeStr = getEffectiveJammatTime(prayerName, "12:00", uiState.customJammatTimes, isFriday, uiState.selectedMasjid)
-                                    val (isUnlocked, unlockFormatted) = checkPrayerUnlocked(jammatTimeStr, "12:00", now)
+                                    val (isUnlocked, unlockFormatted) = checkPrayerUnlocked(jammatTimeStr, "12:00", now, prayerName)
                                     val currentLog = uiState.allLogs.find { it.month == month && it.day == day }
                                     val isAlreadyPrayed = when (prayerName.lowercase()) {
                                         "fajr" -> currentLog?.fajrPrayed == true
@@ -1345,7 +1345,7 @@ fun AzanList(viewModel: AzanViewModel, uiState: com.example.ui.UIState, modifier
             
             // Check if prayer is unlocked: active ONLY 10 minutes after Jammat time!
             val (isPrayerUnlocked, unlockTimeFormatted) = if (isToday && triple.first != "Tahajjud") {
-                checkPrayerUnlocked(jammatTimeStr, triple.third)
+                checkPrayerUnlocked(jammatTimeStr, triple.third, now = Calendar.getInstance(TimeZone.getTimeZone("Asia/Kolkata")), systemName = triple.first)
             } else {
                 Pair(true, "")
             }
@@ -1919,7 +1919,8 @@ fun calculateJammatTime(systemName: String, azanTime24: String, isFriday: Boolea
 fun checkPrayerUnlocked(
     jammatTime24: String,
     azanTime24: String,
-    now: Calendar = Calendar.getInstance(TimeZone.getTimeZone("Asia/Kolkata"))
+    now: Calendar = Calendar.getInstance(TimeZone.getTimeZone("Asia/Kolkata")),
+    systemName: String = ""
 ): Pair<Boolean, String> {
     val timeToUse = if (jammatTime24.isNotBlank() && jammatTime24.contains(":")) {
         jammatTime24.trim()
@@ -1930,10 +1931,16 @@ fun checkPrayerUnlocked(
     val parts = timeToUse.split(":")
     val rawH = parts.getOrNull(0)?.toIntOrNull() ?: return Pair(true, "")
     val rawM = parts.getOrNull(1)?.toIntOrNull() ?: return Pair(true, "")
-    // Convert 12h afternoon time to 24h if user entered e.g. 1:30 for Jumah / Zohar
-    val h = when {
-        rawH in 1..11 && (timeToUse == jammatTime24 && rawH in 1..6) -> rawH + 12
-        else -> rawH
+    
+    val h = when (systemName.lowercase()) {
+        "fajr" -> rawH // Fajr is ALWAYS in the morning (AM), never add 12
+        "dhuhr", "zohar", "jumah", "jum'ah" -> if (rawH in 1..11) rawH + 12 else rawH
+        "asr" -> if (rawH in 1..11) rawH + 12 else rawH
+        "maghrib" -> if (rawH in 1..11) rawH + 12 else rawH
+        "isha" -> if (rawH in 1..11) rawH + 12 else rawH
+        else -> {
+            if (rawH in 1..3) rawH + 12 else rawH
+        }
     }
     val jammatTotalMinutes = h * 60 + rawM
     val unlockTotalMinutes = jammatTotalMinutes + 10 // Active ONLY 10 min after jammat!
