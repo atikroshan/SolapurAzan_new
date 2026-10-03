@@ -12,10 +12,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -24,7 +22,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Mosque
-import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -32,6 +29,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Fill
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -145,13 +145,14 @@ fun SupportScreen(
 
             Spacer(modifier = Modifier.height(6.dp))
 
-            // Non-scrollable compact support content to fit completely on-screen without scrolling
+            // Scrollable compact support content to fit completely on all screen sizes safely
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f),
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.SpaceBetween
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 // 1. App Title Header (As-Is Clean Logo + Title)
                 Row(
@@ -333,7 +334,7 @@ fun SupportScreen(
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(46.dp),
+                        .height(48.dp),
                     shape = RoundedCornerShape(10.dp),
                     colors = CardDefaults.cardColors(containerColor = Color(0xFF111827)),
                     border = BorderStroke(1.dp, Color(0xFFFFD700).copy(alpha = 0.35f))
@@ -360,70 +361,38 @@ fun SupportScreen(
                                 color = Color.White.copy(alpha = 0.8f)
                             )
                             Text(
-                                text = String.format(Locale.US, "%.1f", if (userRating > 0) userRating.toDouble() else averageRating),
+                                text = String.format(Locale.US, "%.1f", if (userRating > 0) userRating else averageRating),
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Black,
                                 color = Color(0xFFFFD700)
                             )
                         }
 
-                        // Interactive Star Rating (5 empty stars)
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .weight(1f)
-                                .padding(horizontal = 4.dp)
-                                .pointerInput(Unit) {
-                                    detectHorizontalDragGestures(
-                                        onDragEnd = {
-                                            coroutineScope.launch {
-                                                GoogleSheetMasjidSync.submitRating(userRating.toInt())
-                                            }
-                                            Toast.makeText(
-                                                context,
-                                                "⭐⭐⭐⭐⭐ Thank you for rating ${"%.1f".format(Locale.US, userRating)} stars!",
-                                                Toast.LENGTH_SHORT
-                                            ).show()
-                                        },
-                                        onHorizontalDrag = { change, dragAmount ->
-                                            change.consume()
-                                            val newRating = (userRating + (dragAmount / 50.0)).coerceIn(0.0, 5.0)
-                                            userRating = newRating
-                                            prefs.edit().putFloat("saved_stars", newRating.toFloat()).apply()
-                                        }
-                                    )
+                        // 5 Clickable Stars (Pure Canvas - 100% crash-proof & smooth)
+                        StarRatingBar(
+                            rating = userRating,
+                            onRatingChanged = { stars ->
+                                userRating = stars.toDouble()
+                                prefs.edit().putFloat("saved_stars", stars.toFloat()).apply()
+                                coroutineScope.launch {
+                                    GoogleSheetMasjidSync.submitRating(stars)
                                 }
-                        ) {
-                            for (i in 1..5) {
-                                val starFill = (userRating - (i - 1)).coerceIn(0.0, 1.0)
-                                Box(modifier = Modifier.size(24.dp)) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.StarBorder,
-                                        contentDescription = null,
-                                        tint = Color(0xFFFFD700).copy(alpha = 0.35f)
-                                    )
-                                    if (starFill > 0) {
-                                        Icon(
-                                            imageVector = Icons.Filled.Star,
-                                            contentDescription = null,
-                                            tint = Color(0xFFFFD700),
-                                            modifier = Modifier.clip(
-                                                androidx.compose.ui.graphics.RectangleShape
-                                            )
-                                        )
-                                    }
-                                }
+                                Toast.makeText(
+                                    context,
+                                    "⭐⭐⭐⭐⭐ Thank you for rating $stars stars!",
+                                    Toast.LENGTH_SHORT
+                                ).show()
                             }
-                        }
+                        )
                     }
                 }
                 
                 // Show selected rating text
                 Text(
-                    text = "Rating: ${"%.1f".format(Locale.US, userRating)}",
-                    color = Color.White,
-                    modifier = Modifier.padding(top = 4.dp, start = 12.dp)
+                    text = if (userRating > 0) "Rating: ${"%.1f".format(Locale.US, userRating)} ★" else "Tap stars to rate us",
+                    fontSize = 11.5.sp,
+                    color = if (userRating > 0) Color(0xFFFFD700) else Color.White.copy(alpha = 0.6f),
+                    modifier = Modifier.padding(top = 1.dp)
                 )
 
                 // 6. Version Number & Powered by @tek
@@ -795,6 +764,56 @@ fun AddMasjidAutoDialog(
                             fontSize = 13.5.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.White
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun StarRatingBar(
+    rating: Double,
+    onRatingChanged: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        for (i in 1..5) {
+            val isFilled = rating >= i
+            Box(
+                modifier = Modifier
+                    .size(28.dp)
+                    .clip(CircleShape)
+                    .clickable { onRatingChanged(i) },
+                contentAlignment = Alignment.Center
+            ) {
+                androidx.compose.foundation.Canvas(modifier = Modifier.size(20.dp)) {
+                    val path = Path().apply {
+                        val cx = size.width / 2f
+                        val cy = size.height / 2f
+                        val outerR = size.minDimension / 2f
+                        val innerR = outerR * 0.42f
+                        for (p in 0 until 10) {
+                            val r = if (p % 2 == 0) outerR else innerR
+                            val angle = Math.toRadians((p * 36 - 90).toDouble())
+                            val x = cx + (r * Math.cos(angle)).toFloat()
+                            val y = cy + (r * Math.sin(angle)).toFloat()
+                            if (p == 0) moveTo(x, y) else lineTo(x, y)
+                        }
+                        close()
+                    }
+                    if (isFilled) {
+                        drawPath(path, color = Color(0xFFFFD700), style = Fill)
+                    } else {
+                        drawPath(
+                            path,
+                            color = Color(0xFFFFD700).copy(alpha = 0.4f),
+                            style = Stroke(width = 1.6.dp.toPx())
                         )
                     }
                 }
