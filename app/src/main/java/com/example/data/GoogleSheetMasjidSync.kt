@@ -652,15 +652,15 @@ function handleRequest(e) {
             if (conn.responseCode == 200) {
                 val csv = conn.inputStream.bufferedReader().use { it.readText() }
                 val lines = csv.lines().map { it.trim().trim('"') }.filter { it.isNotBlank() }
-                val starsList = mutableListOf<Int>()
+                val starsList = mutableListOf<Double>()
                 for (line in lines.drop(1)) {
                     val parts = line.split(",").map { it.trim().trim('"') }
                     if (parts.size >= 2) {
-                        val s = parts[1].toIntOrNull() ?: parts[0].toIntOrNull()
-                        if (s != null && s in 1..5) starsList.add(s)
+                        val s = parts[1].toDoubleOrNull() ?: parts[0].toDoubleOrNull()
+                        if (s != null && s in 0.5..5.0) starsList.add(s)
                     } else if (parts.size == 1) {
-                        val s = parts[0].toIntOrNull()
-                        if (s != null && s in 1..5) starsList.add(s)
+                        val s = parts[0].toDoubleOrNull()
+                        if (s != null && s in 0.5..5.0) starsList.add(s)
                     }
                 }
                 if (starsList.isNotEmpty()) {
@@ -671,12 +671,13 @@ function handleRequest(e) {
         } catch (e: Exception) {
             // Ignore
         }
-        Pair(4.8, 0)
+        Pair(0.0, 0)
     }
 
-    suspend fun submitRating(stars: Int): Boolean = withContext(Dispatchers.IO) {
+    suspend fun submitRating(stars: Double): Boolean = withContext(Dispatchers.IO) {
         try {
-            val query = "action=addRating&stars=$stars"
+            val starsStr = if (stars % 1.0 == 0.0) stars.toInt().toString() else String.format(Locale.US, "%.1f", stars)
+            val query = "action=addRating&stars=$starsStr"
             val targetUrl = if (APPS_SCRIPT_WEBAPP_URL.contains("?")) "$APPS_SCRIPT_WEBAPP_URL&$query" else "$APPS_SCRIPT_WEBAPP_URL?$query"
             val url = URL(targetUrl)
             val conn = (url.openConnection() as HttpURLConnection).apply {
@@ -690,6 +691,8 @@ function handleRequest(e) {
             false
         }
     }
+
+    suspend fun submitRating(stars: Int): Boolean = submitRating(stars.toDouble())
 
     suspend fun submitMasjidRequestAuto(
         name: String,
