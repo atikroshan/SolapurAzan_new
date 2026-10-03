@@ -1,0 +1,48 @@
+import subprocess
+
+svg_content = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" width="1000" height="1000">
+  <!-- Background -->
+  <rect width="1000" height="1000" fill="#134D37" />
+
+  <!-- Top Diamond Finial -->
+  <polygon points="500,65 548,115 500,165 452,115" fill="#C89D5D" />
+
+  <!-- Golden Dome Arch -->
+  <!-- Top peak at (500, 185), outer curve to tips (172, 538) and (828, 538), inner curve to inner peak (500, 252) -->
+  <path d="M 500 185
+           C 490 205 385 240 290 320
+           C 200 395 170 480 172 538
+           C 185 530 200 480 260 410
+           C 330 330 420 280 500 252
+           C 580 280 670 330 740 410
+           C 800 480 815 530 828 538
+           C 830 480 800 395 710 320
+           C 615 240 510 205 500 185 Z"
+        fill="#C89D5D" />
+
+  <!-- Left White Swoosh Ribbon -->
+  <path d="M 388 380
+           C 388 430 350 490 300 535
+           C 230 600 120 675 60 770
+           C 45 800 48 880 72 935
+           C 80 870 125 800 195 730
+           C 285 640 375 520 405 450
+           C 420 415 410 390 388 380 Z"
+        fill="#FFFFFF" />
+
+  <!-- Right White Swoosh Ribbon (Mirrored) -->
+  <path d="M 612 380
+           C 612 430 650 490 700 535
+           C 770 600 880 675 940 770
+           C 955 800 952 880 928 935
+           C 920 870 875 800 805 730
+           C 715 640 625 520 595 450
+           C 580 415 590 390 612 380 Z"
+        fill="#FFFFFF" />
+</svg>
+'''
+
+with open("logo_perfect.svg", "w") as f:
+    f.write(svg_content)
+
+print("SVG written successfully")

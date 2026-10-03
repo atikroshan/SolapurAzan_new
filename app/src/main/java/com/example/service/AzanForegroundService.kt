@@ -195,7 +195,6 @@ class AzanForegroundService : Service() {
         } catch (e: Exception) {
             e.printStackTrace()
         }
-        stopSelf()
     }
 
     private fun playAzan() {

@@ -1,8 +1,45 @@
 <?xml version="1.0" encoding="utf-8"?>
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item
-        android:width="76dp"
-        android:height="76dp"
-        android:drawable="@drawable/ic_app_logo_emblem"
-        android:gravity="center" />
-</layer-list>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="1080"
+    android:viewportHeight="1080">
+
+    <!-- Top Diamond Finial (Gold) -->
+    <path
+        android:fillColor="#C89D5D"
+        android:pathData="M540,170 L581,213 L540,255 L499,213 Z" />
+
+    <!-- Golden Dome Arch -->
+    <path
+        android:fillColor="#C89D5D"
+        android:pathData="M 540,272
+                          C 506,289 404,328 319,404
+                          C 260,472 261,532 313,572
+                          C 353,498 430,396 498,340
+                          C 523,328 536,326 540,326
+                          C 544,326 557,328 582,340
+                          C 650,396 727,498 767,572
+                          C 819,532 820,472 761,404
+                          C 676,328 574,289 540,272 Z" />
+
+    <!-- Left White Swoosh Ribbon -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M 443,438
+                          C 451,468 472,502 499,532
+                          C 506,591 472,693 387,778
+                          C 302,854 217,897 174,910
+                          C 158,820 179,718 242,625
+                          C 315,532 391,468 443,438 Z" />
+
+    <!-- Right White Swoosh Ribbon -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M 637,438
+                          C 629,468 608,502 581,532
+                          C 574,591 608,693 693,778
+                          C 778,854 863,897 906,910
+                          C 922,820 901,718 838,625
+                          C 765,532 689,468 637,438 Z" />
+</vector>
