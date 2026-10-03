@@ -66,18 +66,37 @@ fun SupportScreen(
     var showAddMasjidDialog by remember { mutableStateOf(false) }
     var showThanksDialog by remember { mutableStateOf(false) }
 
-    // Rating system: default starts with 0 stars
+    // Rating system: safely read saved stars with fallback across all types (float, int, string)
     val prefs = remember { context.getSharedPreferences("azan_user_rating", Context.MODE_PRIVATE) }
-    var userRating by remember { mutableDoubleStateOf(prefs.getFloat("saved_stars", 0f).toDouble()) }
+    val initialRating = remember(prefs) {
+        try {
+            prefs.getFloat("saved_stars", 0f).toDouble()
+        } catch (e1: Throwable) {
+            try {
+                prefs.getInt("saved_stars", 0).toDouble()
+            } catch (e2: Throwable) {
+                try {
+                    prefs.getString("saved_stars", "0")?.toDoubleOrNull() ?: 0.0
+                } catch (e3: Throwable) {
+                    0.0
+                }
+            }
+        }
+    }
+    var userRating by remember { mutableDoubleStateOf(initialRating) }
     var averageRating by remember { mutableDoubleStateOf(4.8) }
     var totalReviews by remember { mutableIntStateOf(0) }
 
     // Fetch live ratings from Google Sheet tab "rating" on load
     LaunchedEffect(Unit) {
-        val (avg, count) = GoogleSheetMasjidSync.fetchRatingStats()
-        if (count > 0) {
-            averageRating = avg
-            totalReviews = count
+        try {
+            val (avg, count) = GoogleSheetMasjidSync.fetchRatingStats()
+            if (count > 0) {
+                averageRating = avg
+                totalReviews = count
+            }
+        } catch (t: Throwable) {
+            // Never crash if network or sheet fails
         }
     }
 
@@ -104,7 +123,7 @@ fun SupportScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .appBackground()
+            .background(Color.Black)
     ) {
         Column(
             modifier = Modifier
@@ -199,10 +218,9 @@ fun SupportScreen(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.Center
                         ) {
-                            Icon(
+                            Image(
                                 painter = painterResource(id = R.drawable.ic_whatsapp),
                                 contentDescription = "WhatsApp",
-                                tint = Color.Unspecified,
                                 modifier = Modifier.size(30.dp)
                             )
                             Spacer(modifier = Modifier.height(4.dp))
@@ -314,12 +332,14 @@ fun SupportScreen(
                         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
                         modifier = Modifier.height(30.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.QrCodeScanner,
-                            contentDescription = null,
-                            tint = primaryGold,
-                            modifier = Modifier.size(14.dp)
-                        )
+                        androidx.compose.foundation.Canvas(modifier = Modifier.size(13.dp)) {
+                            drawRect(color = primaryGold, style = Stroke(width = 1.4.dp.toPx()))
+                            drawRect(
+                                color = primaryGold,
+                                size = androidx.compose.ui.geometry.Size(size.width * 0.45f, size.height * 0.45f),
+                                topLeft = androidx.compose.ui.geometry.Offset(size.width * 0.275f, size.height * 0.275f)
+                            )
+                        }
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = "Pay via UPI (PhonePe / GPay)",
@@ -373,9 +393,17 @@ fun SupportScreen(
                             rating = userRating,
                             onRatingChanged = { stars ->
                                 userRating = stars.toDouble()
-                                prefs.edit().putFloat("saved_stars", stars.toFloat()).apply()
+                                try {
+                                    prefs.edit().remove("saved_stars").putFloat("saved_stars", stars.toFloat()).apply()
+                                } catch (e: Throwable) {
+                                    // Ignore
+                                }
                                 coroutineScope.launch {
-                                    GoogleSheetMasjidSync.submitRating(stars)
+                                    try {
+                                        GoogleSheetMasjidSync.submitRating(stars)
+                                    } catch (t: Throwable) {
+                                        // Ignore
+                                    }
                                 }
                                 Toast.makeText(
                                     context,
