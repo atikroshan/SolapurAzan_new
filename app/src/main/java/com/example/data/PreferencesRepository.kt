@@ -19,6 +19,17 @@ class PreferencesRepository(private val context: Context) {
     private val KEY_CACHED_SHEET_CSV = stringPreferencesKey("cached_sheet_csv")
     private val KEY_ADMIN_OVERRIDE_MASAJID = stringSetPreferencesKey("admin_override_masajid_ids")
     private val KEY_APPS_SCRIPT_URL = stringPreferencesKey("apps_script_url")
+    private val KEY_TAQWA_SYNC_USER = stringPreferencesKey("taqwa_sync_user")
+
+    val taqwaSyncUserFlow: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[KEY_TAQWA_SYNC_USER] ?: ""
+    }
+
+    suspend fun setTaqwaSyncUser(user: String) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_TAQWA_SYNC_USER] = user.trim()
+        }
+    }
 
     val isSetupCompletedFlow: Flow<Boolean> = context.dataStore.data.map { prefs ->
         prefs[KEY_SETUP_COMPLETED] ?: true

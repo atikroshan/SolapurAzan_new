@@ -49,6 +49,7 @@ data class UIState(
     val selectedMasjid: MasjidItem = MasjidRepository.defaultMasjid,
     val allMasajid: List<MasjidItem> = MasjidRepository.getAllMasajid(),
     val restoredTaqwaPoints: Int = 0,
+    val taqwaSyncUser: String = "",
     val isSetupCompleted: Boolean = true,
     val isSyncingSheet: Boolean = false,
     val appsScriptUrl: String = "",
@@ -251,15 +252,15 @@ class AzanViewModel(
             prefs.getCustomJumahAzan(),
             prefs.isSetupCompletedFlow,
             _isSyncingSheet,
-            prefs.restoredTaqwaPointsFlow
-        ) { cj, ja, setupDone, syncing, restoredPoints ->
-            Triple(Pair(cj, ja), Pair(setupDone, syncing), restoredPoints)
+            combine(prefs.restoredTaqwaPointsFlow, prefs.taqwaSyncUserFlow) { r, u -> Pair(r, u) }
+        ) { cj, ja, setupDone, syncing, (restoredPoints, syncUser) ->
+            Triple(Pair(cj, ja), Triple(setupDone, syncing, syncUser), restoredPoints)
         },
         combine(prefs.appsScriptUrlFlow, _lastSyncStatusMessage) { url, msg -> Pair(url, msg) }
-    ) { (language, toggles, calMasjidPoints), allLogs, timings, (jammatPair, setupPair, restoredPoints), (appsScriptUrl, syncMsg) ->
+    ) { (language, toggles, calMasjidPoints), allLogs, timings, (jammatPair, setupTriple, restoredPoints), (appsScriptUrl, syncMsg) ->
         val (cal, selectedMasjid, masajid) = calMasjidPoints
         val (customJammat, customJumahAzan) = jammatPair
-        val (isSetupCompleted, isSyncingSheet) = setupPair
+        val (isSetupCompleted, isSyncingSheet, taqwaSyncUser) = setupTriple
         val m = cal.get(Calendar.MONTH) + 1
         val d = cal.get(Calendar.DAY_OF_MONTH)
         val isFriday = cal.get(Calendar.DAY_OF_WEEK) == Calendar.FRIDAY
@@ -309,6 +310,7 @@ class AzanViewModel(
             selectedMasjid = selectedMasjid,
             allMasajid = masajid,
             restoredTaqwaPoints = restoredPoints,
+            taqwaSyncUser = taqwaSyncUser,
             isSetupCompleted = isSetupCompleted,
             isSyncingSheet = isSyncingSheet,
             appsScriptUrl = appsScriptUrl,
@@ -319,6 +321,44 @@ class AzanViewModel(
     fun setRestoredTaqwaPoints(points: Int) {
         viewModelScope.launch {
             prefs.setRestoredTaqwaPoints(points)
+        }
+    }
+
+    fun backupTaqwa(userId: String, onResult: (Boolean, String) -> Unit) {
+        viewModelScope.launch {
+            val total = uiState.value.restoredTaqwaPoints + uiState.value.allLogs.sumOf { it.getFivePrayersCount() }
+            val restored = uiState.value.restoredTaqwaPoints
+            val logsJson = org.json.JSONArray().apply {
+                uiState.value.allLogs.forEach { log ->
+                    put(org.json.JSONObject().apply {
+                        put("m", log.month)
+                        put("d", log.day)
+                        put("f", log.fajrPrayed)
+                        put("dh", log.dhuhrPrayed)
+                        put("a", log.asrPrayed)
+                        put("mg", log.maghribPrayed)
+                        put("i", log.ishaPrayed)
+                    })
+                }
+            }.toString()
+            prefs.setTaqwaSyncUser(userId)
+            val result = GoogleSheetMasjidSync.backupTaqwaToCloud(userId, total, restored, logsJson)
+            onResult(result.first, result.second)
+        }
+    }
+
+    fun restoreTaqwa(userId: String, onResult: (Boolean, Int, String) -> Unit) {
+        viewModelScope.launch {
+            prefs.setTaqwaSyncUser(userId)
+            val data = GoogleSheetMasjidSync.restoreTaqwaFromCloud(userId)
+            if (data != null) {
+                val (total, restored, logsJson) = data
+                val ptsToRestore = if (restored > 0) restored else total
+                prefs.setRestoredTaqwaPoints(ptsToRestore)
+                onResult(true, ptsToRestore, "Successfully restored $ptsToRestore Taqwa Points from Cloud!")
+            } else {
+                onResult(false, 0, "No backup found for '$userId'. Please check Google Account / Mobile Number.")
+            }
         }
     }
 

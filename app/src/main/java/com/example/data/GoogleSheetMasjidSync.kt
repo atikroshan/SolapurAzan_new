@@ -263,7 +263,7 @@ function handleRequest(e) {
     if (action === "addRating") {
       var ss = SpreadsheetApp.getActiveSpreadsheet();
       var rSheet = ss.getSheetByName("rating") || ss.insertSheet("rating");
-      var stars = parseInt(p.stars || "5", 10);
+      var stars = parseFloat(p.stars || "5");
       var lastRow = rSheet.getLastRow();
       var nextId = lastRow <= 1 ? 1 : lastRow;
       rSheet.appendRow([nextId, stars]);
@@ -273,23 +273,113 @@ function handleRequest(e) {
       })).setMimeType(ContentService.MimeType.JSON);
     }
 
-    if (action === "requestMasjid") {
+    if (action === "requestMasjid" || action === "requestMasjidToSheet") {
       var name = (p.name || "").toString().trim();
-      var loc = (p.location || "").toString().trim();
-      var admin = (p.admin || "").toString().trim();
-      var contact = (p.contact || "").toString().trim();
+      var loc = (p.location || p.address || "").toString().trim();
+      var photoData = p.photoData || "";
+      var photoName = (p.photoName || (name + " - Photo.jpg")).toString().trim();
+      var photoUrl = "";
       
-      try {
-        MailApp.sendEmail({
-          to: "atikroshan@gmail.com",
-          subject: "New Masjid Request: " + name + " (" + loc + ")",
-          body: "New Masjid Submission:\n\nMasjid Name: " + name + "\nLocation: " + loc + "\nAdmin: " + admin + "\nContact: " + contact
-        });
-      } catch (mailErr) {}
+      if (photoData) {
+        try {
+          var bytes = Utilities.base64Decode(photoData);
+          var blob = Utilities.newBlob(bytes, "image/jpeg", photoName);
+          var file = DriveApp.createFile(blob);
+          file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+          photoUrl = file.getUrl();
+        } catch (e) {
+          photoUrl = "";
+        }
+      }
+      
+      var ss = SpreadsheetApp.getActiveSpreadsheet();
+      var sheet = ss.getSheetByName("Sheet1") || ss.getActiveSheet();
+      
+      // 1. Leave one empty row below the last row
+      sheet.appendRow([""]);
+      
+      // 2. Append the 1-to-9 row block matching the exact template:
+      sheet.appendRow(["Masjid Name", name]);
+      sheet.appendRow(["Address", loc]);
+      sheet.appendRow(["ID", ""]);
+      sheet.appendRow(["Masjid Photo", photoUrl]);
+      sheet.appendRow(["", "Fajr", "Zohar", "Asr", "Maghrib", "Isha", "Jummah"]);
+      sheet.appendRow(["Azan", "05:50", "01:15", "05:35", "06:10", "07:50", "12:48"]);
+      sheet.appendRow(["Jammat", "06:20", "01:30", "05:45", "06:12", "07:59", "01:30"]);
+      sheet.appendRow(["Admin ID", "admin"]);
+      sheet.appendRow(["Password", ""]);
       
       return ContentService.createTextOutput(JSON.stringify({
         status: "success",
-        message: "Masjid request received"
+        message: "Masjid " + name + " added to Sheet1 successfully!",
+        photoUrl: photoUrl
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (action === "backupTaqwa") {
+      var user = (p.user || "default_user").toString().trim();
+      var totalPoints = p.points || "0";
+      var restored = p.restored || "0";
+      var logsJson = p.logs || "[]";
+      var ss = SpreadsheetApp.getActiveSpreadsheet();
+      var tSheet = ss.getSheetByName("taqwa_backup") || ss.insertSheet("taqwa_backup");
+      var data = tSheet.getDataRange().getValues();
+      var foundRow = -1;
+      for (var r = 0; r < data.length; r++) {
+        if ((data[r][0] || "").toString().trim() === user) {
+          foundRow = r;
+          break;
+        }
+      }
+      var nowStr = Utilities.formatDate(new Date(), "GMT+5:30", "yyyy-MM-dd HH:mm:ss");
+      if (foundRow !== -1) {
+        tSheet.getRange(foundRow + 1, 2).setValue(totalPoints);
+        tSheet.getRange(foundRow + 1, 3).setValue(restored);
+        tSheet.getRange(foundRow + 1, 4).setValue(logsJson);
+        tSheet.getRange(foundRow + 1, 5).setValue(nowStr);
+      } else {
+        if (tSheet.getLastRow() === 0) {
+          tSheet.appendRow(["User ID / Phone", "Total Points", "Restored Points", "Logs JSON", "Last Backup"]);
+        }
+        tSheet.appendRow([user, totalPoints, restored, logsJson, nowStr]);
+      }
+      return ContentService.createTextOutput(JSON.stringify({
+        status: "success",
+        message: "Taqwa backup saved for " + user
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (action === "restoreTaqwa") {
+      var user = (p.user || "default_user").toString().trim();
+      var ss = SpreadsheetApp.getActiveSpreadsheet();
+      var tSheet = ss.getSheetByName("taqwa_backup");
+      if (!tSheet) {
+        return ContentService.createTextOutput(JSON.stringify({
+          status: "error",
+          message: "No backups found"
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
+      var data = tSheet.getDataRange().getValues();
+      var foundRow = -1;
+      for (var r = 0; r < data.length; r++) {
+        if ((data[r][0] || "").toString().trim() === user) {
+          foundRow = r;
+          break;
+        }
+      }
+      if (foundRow === -1) {
+        return ContentService.createTextOutput(JSON.stringify({
+          status: "error",
+          message: "No backup found for " + user
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
+      return ContentService.createTextOutput(JSON.stringify({
+        status: "success",
+        user: user,
+        totalPoints: parseInt(data[foundRow][1] || "0", 10),
+        restoredPoints: parseInt(data[foundRow][2] || "0", 10),
+        logsJson: data[foundRow][3] || "[]",
+        lastBackup: data[foundRow][4] || ""
       })).setMimeType(ContentService.MimeType.JSON);
     }
     
@@ -698,63 +788,102 @@ function handleRequest(e) {
         name: String,
         location: String,
         adminName: String,
-        contact: String
+        contact: String,
+        photoBase64: String? = null,
+        photoName: String? = null
     ): Boolean = withContext(Dispatchers.IO) {
         var sent = false
-        // 1. Send via formsubmit.co direct to atikroshan@gmail.com
+        // Send directly to Google Apps Script -> Inserts 9-row template into Sheet1 and saves photo to Google Drive
         try {
-            val json = """
-                {
-                    "name": "${name.replace("\"", "\\\"")}",
-                    "location": "${location.replace("\"", "\\\"")}",
-                    "admin": "${adminName.replace("\"", "\\\"")}",
-                    "contact": "${contact.replace("\"", "\\\"")}",
-                    "message": "New Masjid submission for Azan Time Solapur"
-                }
-            """.trimIndent()
-            val url = URL("https://formsubmit.co/ajax/atikroshan@gmail.com")
+            val url = URL(APPS_SCRIPT_WEBAPP_URL)
             val conn = (url.openConnection() as HttpURLConnection).apply {
                 requestMethod = "POST"
                 doOutput = true
-                setRequestProperty("Content-Type", "application/json")
-                setRequestProperty("Accept", "application/json")
-                setRequestProperty("Origin", "https://azan-app.web.app")
-                setRequestProperty("Referer", "https://azan-app.web.app")
-                connectTimeout = 10000
-                readTimeout = 10000
+                setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
+                connectTimeout = 15000
+                readTimeout = 15000
+                instanceFollowRedirects = true
+            }
+            val postData = StringBuilder()
+            postData.append("action=").append(java.net.URLEncoder.encode("requestMasjidToSheet", "UTF-8"))
+            postData.append("&name=").append(java.net.URLEncoder.encode(name, "UTF-8"))
+            postData.append("&location=").append(java.net.URLEncoder.encode(location, "UTF-8"))
+            postData.append("&admin=").append(java.net.URLEncoder.encode(adminName, "UTF-8"))
+            postData.append("&contact=").append(java.net.URLEncoder.encode(contact, "UTF-8"))
+            if (!photoBase64.isNullOrBlank()) {
+                postData.append("&photoData=").append(java.net.URLEncoder.encode(photoBase64, "UTF-8"))
+                postData.append("&photoName=").append(java.net.URLEncoder.encode(photoName ?: "$name - Photo.jpg", "UTF-8"))
             }
             conn.outputStream.use { os ->
-                os.write(json.toByteArray(Charsets.UTF_8))
-            }
-            if (conn.responseCode in 200..299) sent = true
-        } catch (e: Exception) {
-            // Fallback
-        }
-
-        // 2. Also send to Google Apps Script
-        try {
-            val params = mapOf(
-                "action" to "requestMasjid",
-                "name" to name,
-                "location" to location,
-                "admin" to adminName,
-                "contact" to contact
-            )
-            val q = params.entries.joinToString("&") { (k, v) ->
-                "${java.net.URLEncoder.encode(k, "UTF-8")}=${java.net.URLEncoder.encode(v, "UTF-8")}"
-            }
-            val targetUrl = if (APPS_SCRIPT_WEBAPP_URL.contains("?")) "$APPS_SCRIPT_WEBAPP_URL&$q" else "$APPS_SCRIPT_WEBAPP_URL?$q"
-            val conn = (URL(targetUrl).openConnection() as HttpURLConnection).apply {
-                requestMethod = "GET"
-                connectTimeout = 8000
-                readTimeout = 8000
-                instanceFollowRedirects = true
+                os.write(postData.toString().toByteArray(Charsets.UTF_8))
             }
             if (conn.responseCode in 200..399) sent = true
         } catch (e: Exception) {
             // Fallback
         }
-
         true
+    }
+
+    suspend fun backupTaqwaToCloud(
+        userId: String,
+        totalPoints: Int,
+        restoredPoints: Int,
+        logsJson: String
+    ): Pair<Boolean, String> = withContext(Dispatchers.IO) {
+        try {
+            val url = URL(APPS_SCRIPT_WEBAPP_URL)
+            val conn = (url.openConnection() as HttpURLConnection).apply {
+                requestMethod = "POST"
+                doOutput = true
+                setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
+                connectTimeout = 15000
+                readTimeout = 15000
+                instanceFollowRedirects = true
+            }
+            val postData = StringBuilder()
+            postData.append("action=").append(java.net.URLEncoder.encode("backupTaqwa", "UTF-8"))
+            postData.append("&user=").append(java.net.URLEncoder.encode(userId, "UTF-8"))
+            postData.append("&points=").append(totalPoints)
+            postData.append("&restored=").append(restoredPoints)
+            postData.append("&logs=").append(java.net.URLEncoder.encode(logsJson, "UTF-8"))
+            conn.outputStream.use { os ->
+                os.write(postData.toString().toByteArray(Charsets.UTF_8))
+            }
+            if (conn.responseCode in 200..399) {
+                Pair(true, "Cloud Sync Successful!")
+            } else {
+                Pair(false, "Server returned code ${conn.responseCode}")
+            }
+        } catch (e: Exception) {
+            Pair(false, e.message ?: "Sync failed")
+        }
+    }
+
+    suspend fun restoreTaqwaFromCloud(
+        userId: String
+    ): Triple<Int, Int, String>? = withContext(Dispatchers.IO) {
+        try {
+            val q = "action=restoreTaqwa&user=${java.net.URLEncoder.encode(userId, "UTF-8")}"
+            val targetUrl = if (APPS_SCRIPT_WEBAPP_URL.contains("?")) "$APPS_SCRIPT_WEBAPP_URL&$q" else "$APPS_SCRIPT_WEBAPP_URL?$q"
+            val conn = (URL(targetUrl).openConnection() as HttpURLConnection).apply {
+                requestMethod = "GET"
+                connectTimeout = 12000
+                readTimeout = 12000
+                instanceFollowRedirects = true
+            }
+            if (conn.responseCode in 200..399) {
+                val responseText = conn.inputStream.bufferedReader().use { it.readText() }
+                val json = org.json.JSONObject(responseText)
+                if (json.optString("status") == "success") {
+                    val pts = json.optInt("totalPoints", 0)
+                    val rest = json.optInt("restoredPoints", 0)
+                    val logs = json.optString("logsJson", "[]")
+                    return@withContext Triple(pts, rest, logs)
+                }
+            }
+        } catch (e: Exception) {
+            // Ignore
+        }
+        null
     }
 }

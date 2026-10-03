@@ -12,8 +12,8 @@ android {
         applicationId = "com.aistudio.offlineazan.aqzwsx"
         minSdk = 24
         targetSdk = 35
-        versionCode = 78
-        versionName = "2.6.47"
+        versionCode = 79
+        versionName = "2.6.48"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

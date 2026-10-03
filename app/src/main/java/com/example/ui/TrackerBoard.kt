@@ -21,8 +21,12 @@ import androidx.compose.material.icons.outlined.AccessTime
 import androidx.compose.material.icons.outlined.WbTwilight
 import androidx.compose.material.icons.outlined.WbSunny
 import androidx.compose.ui.platform.LocalContext
+import android.content.Context
+import android.content.Intent
 import android.widget.Toast
 import com.example.data.AzanTiming
+import com.example.data.GoogleSheetMasjidSync
+import kotlinx.coroutines.launch
 import com.example.BuildConfig
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -209,6 +213,8 @@ fun TrackerBoardContent(
     onTogglePrayer: (Int, Int, String) -> Unit = { _, _, _ -> },
     onBack: (() -> Unit)? = null,
     onRestorePoints: (Int) -> Unit = {},
+    onBackupTaqwa: ((String, (Boolean, String) -> Unit) -> Unit)? = null,
+    onRestoreTaqwa: ((String, (Boolean, Int, String) -> Unit) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     var selectedDayInfo by remember { mutableStateOf<Pair<Int, Int>?>(null) }
@@ -481,31 +487,256 @@ fun TrackerBoardContent(
 
                 if (showRestorePointsDialog) {
                     var inputPoints by remember { mutableStateOf(if (uiState.restoredTaqwaPoints > 0) uiState.restoredTaqwaPoints.toString() else "") }
+                    var syncUserId by remember { mutableStateOf(uiState.taqwaSyncUser.ifBlank { "" }) }
+                    var isSyncing by remember { mutableStateOf(false) }
+                    var syncStatusMsg by remember { mutableStateOf<String?>(null) }
+                    var syncIsSuccess by remember { mutableStateOf(true) }
+                    val context = LocalContext.current
+                    val coroutineScope = rememberCoroutineScope()
                     
                     AlertDialog(
                         onDismissRequest = { showRestorePointsDialog = false },
                         title = {
-                            Text(
-                                text = when (uiState.language) {
-                                    "ur" -> "سابقہ تقویٰ پوائنٹس بحال کریں"
-                                    "hi" -> "पुराने तक़वा अंक रीस्टोर करें"
-                                    else -> "Restore Taqwa Points"
-                                },
-                                fontSize = 17.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFFF3DE8E)
-                            )
-                        },
-                        text = {
-                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Refresh,
+                                    contentDescription = null,
+                                    tint = Color(0xFFF3DE8E),
+                                    modifier = Modifier.size(22.dp)
+                                )
                                 Text(
                                     text = when (uiState.language) {
-                                        "ur" -> "اپ ڈیٹ سے پہلے کے اپنے تقویٰ پوائنٹس درج کریں۔ وہ محفوظ کر لیے جائیں گے اور آپ کے کل پوائنٹس میں جمع ہو جائیں گے۔"
-                                        "hi" -> "अपडेट से पहले के अपने तक़वा अंक यहाँ दर्ज करें। वे सुरक्षित रूप से आपके कुल अंकों में जुड़ जाएँगे।"
-                                        else -> "Enter your previous Taqwa points from before the update. They will be safely saved and added to your total."
+                                        "ur" -> "تقویٰ پوائنٹس کلاؤڈ / ڈرائیو بیک اپ و بحالی"
+                                        "hi" -> "तक़वा अंक ड्राइव / क्लाउड बैकअप व रीस्टोर"
+                                        else -> "Taqwa Points Cloud / Drive Sync"
                                     },
-                                    fontSize = 12.sp,
-                                    color = Color.White.copy(alpha = 0.85f)
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFF3DE8E)
+                                )
+                            }
+                        },
+                        text = {
+                            Column(
+                                verticalArrangement = Arrangement.spacedBy(10.dp),
+                                modifier = Modifier.verticalScroll(rememberScrollState())
+                            ) {
+                                // 1. Cloud & Drive Sync Info Banner (Like Contact Sync)
+                                Card(
+                                    shape = RoundedCornerShape(10.dp),
+                                    colors = CardDefaults.cardColors(containerColor = Color(0xFF0F261C)),
+                                    border = BorderStroke(1.dp, Color(0xFF1E4C38))
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(10.dp),
+                                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Text(
+                                            text = "☁️ Google Drive / Cloud Sync (Contact Sync Style)",
+                                            fontSize = 11.5.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF34D399)
+                                        )
+                                        Text(
+                                            text = when (uiState.language) {
+                                                "ur" -> "جب ایپ ڈیلیٹ ہو، نیا فون لیں، یا فون ری سیٹ/فلیش کریں، اپنے گوگل اکاؤنٹ یا موبائل نمبر سے تمام تقویٰ پوائنٹس واپس بحال کریں۔"
+                                                "hi" -> "जब ऐप डिलीट हो, नया फोन लें, या फोन रीसेट/फ्लैश करें, अपने गूगल अकाउंट या मोबाइल नंबर से सभी तक़वा अंक तुरंत रीस्टोर करें।"
+                                                else -> "Restore your Taqwa points instantly from Google Drive / Cloud anytime when you switch phones or delete/flash your mobile."
+                                            },
+                                            fontSize = 10.5.sp,
+                                            color = Color.White.copy(alpha = 0.85f),
+                                            lineHeight = 14.sp
+                                        )
+                                    }
+                                }
+
+                                // Sync User / Phone input field
+                                OutlinedTextField(
+                                    value = syncUserId,
+                                    onValueChange = { syncUserId = it },
+                                    label = {
+                                        Text(
+                                            text = when (uiState.language) {
+                                                "ur" -> "گوگل اکاؤنٹ / موبائل نمبر"
+                                                "hi" -> "गूगल अकाउंट / मोबाइल नंबर"
+                                                else -> "Google Account / Mobile No."
+                                            }
+                                        )
+                                    },
+                                    singleLine = true,
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedTextColor = Color.White,
+                                        unfocusedTextColor = Color.White,
+                                        focusedBorderColor = Color(0xFF34D399),
+                                        unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
+                                        focusedLabelColor = Color(0xFF34D399),
+                                        unfocusedLabelColor = Color.White.copy(alpha = 0.6f)
+                                    ),
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+
+                                // Action Buttons for Cloud Sync & Restore
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    // Backup Button
+                                    Button(
+                                        onClick = {
+                                            val user = syncUserId.trim()
+                                            if (user.isBlank()) {
+                                                syncStatusMsg = "Please enter Google Account or Mobile Number"
+                                                syncIsSuccess = false
+                                                return@Button
+                                            }
+                                            isSyncing = true
+                                            syncStatusMsg = null
+                                            if (onBackupTaqwa != null) {
+                                                onBackupTaqwa(user) { success, msg ->
+                                                    isSyncing = false
+                                                    syncIsSuccess = success
+                                                    syncStatusMsg = msg
+                                                    Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                                                }
+                                            } else {
+                                                coroutineScope.launch {
+                                                    val res = GoogleSheetMasjidSync.backupTaqwaToCloud(
+                                                        user,
+                                                        totalPoints,
+                                                        uiState.restoredTaqwaPoints,
+                                                        "[]"
+                                                    )
+                                                    isSyncing = false
+                                                    syncIsSuccess = res.first
+                                                    syncStatusMsg = res.second
+                                                    Toast.makeText(context, res.second, Toast.LENGTH_SHORT).show()
+                                                }
+                                            }
+                                        },
+                                        enabled = !isSyncing,
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
+                                        shape = RoundedCornerShape(8.dp),
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Text(
+                                            text = when (uiState.language) {
+                                                "ur" -> "بیک اپ لیں ☁️"
+                                                "hi" -> "बैकअप लें ☁️"
+                                                else -> "Backup ☁️"
+                                            },
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color.White
+                                        )
+                                    }
+
+                                    // Restore Button
+                                    Button(
+                                        onClick = {
+                                            val user = syncUserId.trim()
+                                            if (user.isBlank()) {
+                                                syncStatusMsg = "Please enter Google Account or Mobile Number"
+                                                syncIsSuccess = false
+                                                return@Button
+                                            }
+                                            isSyncing = true
+                                            syncStatusMsg = null
+                                            if (onRestoreTaqwa != null) {
+                                                onRestoreTaqwa(user) { success, pts, msg ->
+                                                    isSyncing = false
+                                                    syncIsSuccess = success
+                                                    syncStatusMsg = msg
+                                                    if (success) {
+                                                        inputPoints = pts.toString()
+                                                    }
+                                                    Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                                                }
+                                            } else {
+                                                coroutineScope.launch {
+                                                    val res = GoogleSheetMasjidSync.restoreTaqwaFromCloud(user)
+                                                    isSyncing = false
+                                                    if (res != null) {
+                                                        val ptsToRestore = if (res.second > 0) res.second else res.first
+                                                        onRestorePoints(ptsToRestore)
+                                                        inputPoints = ptsToRestore.toString()
+                                                        syncIsSuccess = true
+                                                        syncStatusMsg = "Restored $ptsToRestore Points successfully!"
+                                                        Toast.makeText(context, syncStatusMsg, Toast.LENGTH_SHORT).show()
+                                                    } else {
+                                                        syncIsSuccess = false
+                                                        syncStatusMsg = "No backup found for '$user'"
+                                                        Toast.makeText(context, syncStatusMsg, Toast.LENGTH_SHORT).show()
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        enabled = !isSyncing,
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE5A93C)),
+                                        shape = RoundedCornerShape(8.dp),
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Text(
+                                            text = when (uiState.language) {
+                                                "ur" -> "بحال کریں 🔄"
+                                                "hi" -> "रीस्टोर करें 🔄"
+                                                else -> "Restore 🔄"
+                                            },
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF0F172A)
+                                        )
+                                    }
+                                }
+
+                                if (isSyncing) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.Center,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(16.dp),
+                                            strokeWidth = 2.dp,
+                                            color = Color(0xFF34D399)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = "Connecting to Cloud / Drive...",
+                                            fontSize = 11.sp,
+                                            color = Color(0xFF34D399)
+                                        )
+                                    }
+                                }
+
+                                if (syncStatusMsg != null) {
+                                    Text(
+                                        text = syncStatusMsg ?: "",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = if (syncIsSuccess) Color(0xFF34D399) else Color(0xFFEF4444),
+                                        textAlign = TextAlign.Center,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                }
+
+                                HorizontalDivider(
+                                    color = Color.White.copy(alpha = 0.15f),
+                                    modifier = Modifier.padding(vertical = 4.dp)
+                                )
+
+                                // 2. Manual Offline Points Entry
+                                Text(
+                                    text = when (uiState.language) {
+                                        "ur" -> "یا دستی طور پر پوائنٹس درج کریں:"
+                                        "hi" -> "या मैन्युअल रूप से अंक दर्ज करें:"
+                                        else -> "Or enter points manually:"
+                                    },
+                                    fontSize = 11.5.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color.White.copy(alpha = 0.8f)
                                 )
 
                                 OutlinedTextField(
@@ -551,9 +782,9 @@ fun TrackerBoardContent(
                             ) {
                                 Text(
                                     text = when (uiState.language) {
-                                        "ur" -> "محفوظ اور بحال کریں"
-                                        "hi" -> "सेव और रीस्टोर करें"
-                                        else -> "Save & Restore"
+                                        "ur" -> "محفوظ کریں"
+                                        "hi" -> "सेव करें"
+                                        else -> "Save Points"
                                     },
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFF0F172A)
@@ -564,9 +795,9 @@ fun TrackerBoardContent(
                             TextButton(onClick = { showRestorePointsDialog = false }) {
                                 Text(
                                     text = when (uiState.language) {
-                                        "ur" -> "منسوخ"
-                                        "hi" -> "रद्द करें"
-                                        else -> "Cancel"
+                                        "ur" -> "بند کریں"
+                                        "hi" -> "बंद करें"
+                                        else -> "Close"
                                     },
                                     color = Color.White.copy(alpha = 0.7f)
                                 )

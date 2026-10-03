@@ -2,8 +2,12 @@ package com.example.ui
 
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
+import android.util.Base64
 import android.widget.Toast
+import java.io.ByteArrayOutputStream
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -584,6 +588,13 @@ fun SupportScreen(
                         ) {
                             val appRatingDisplay = if (averageRating > 0.0) averageRating else 4.8
                             Column {
+                                Text(
+                                    text = "App Rating",
+                                    fontSize = 11.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = primaryGold
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -937,9 +948,9 @@ fun SupportScreen(
             title = {
                 Text(
                     text = when (uiState.language) {
-                        "ur" -> "جزاک اللہ خیراً! 👍"
-                        "hi" -> "धन्यवाद! 👍"
-                        else -> "Thank You! 👍"
+                        "ur" -> "درخواست موصول ہوگئی! 👍"
+                        "hi" -> "अनुरोध प्राप्त हुआ! 👍"
+                        else -> "Request Received! 👍"
                     },
                     fontWeight = FontWeight.Bold,
                     fontSize = 19.sp,
@@ -951,9 +962,9 @@ fun SupportScreen(
             text = {
                 Text(
                     text = when (uiState.language) {
-                        "ur" -> "آپ کی مسجد کی تفصیلات کامیابی کے ساتھ atikroshan@gmail.com پر روانہ کر دی گئی ہیں۔ جانچ کے بعد جلد ایپ میں شامل کر دی جائے گی۔"
-                        "hi" -> "आपकी मस्जिद की जानकारी atikroshan@gmail.com पर भेज दी गई है। जांच के बाद इसे जल्द ही ऐप में जोड़ दिया जाएगा।"
-                        else -> "Your masjid request has been automatically sent to atikroshan@gmail.com. We will verify and add it to the Azan app soon!"
+                        "ur" -> "مسجد کی تفصیلات گوگل شیٹ (Sheet1) اور فوٹو گوگل ڈرائیو میں کامیابی کے ساتھ درج کر دی گئی ہیں۔ ایڈمن جانچ کے بعد جلد ایکٹیو کر دیں گے۔"
+                        "hi" -> "मस्जिद की जानकारी गूगल शीट (Sheet1) और फोटो गूगल ड्राइव में सफलतापूर्वक दर्ज कर दी गई है। जांच के बाद इसे जल्द ही ऐप में लाइव कर दिया जाएगा।"
+                        else -> "Masjid details successfully submitted to Google Sheet (Sheet1) and photo to Google Drive! ID & Password can now be added in the sheet."
                     },
                     fontSize = 13.sp,
                     color = Color.White.copy(alpha = 0.9f),
@@ -990,6 +1001,7 @@ fun AddMasjidAutoDialog(
     onDismiss: () -> Unit,
     onSubmitted: () -> Unit
 ) {
+    val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     var masjidName by remember { mutableStateOf("") }
     var location by remember { mutableStateOf("") }
@@ -1200,11 +1212,41 @@ fun AddMasjidAutoDialog(
 
                         isSending = true
                         coroutineScope.launch {
+                            var photoBase64: String? = null
+                            if (selectedPhotoUri != null) {
+                                try {
+                                    val inputStream = context.contentResolver.openInputStream(selectedPhotoUri!!)
+                                    val originalBitmap = BitmapFactory.decodeStream(inputStream)
+                                    inputStream?.close()
+                                    if (originalBitmap != null) {
+                                        val maxDim = 1024
+                                        val scale = (maxDim.toFloat() / Math.max(originalBitmap.width, originalBitmap.height)).coerceAtMost(1f)
+                                        val scaledBitmap = if (scale < 1f) {
+                                            Bitmap.createScaledBitmap(
+                                                originalBitmap,
+                                                (originalBitmap.width * scale).toInt(),
+                                                (originalBitmap.height * scale).toInt(),
+                                                true
+                                            )
+                                        } else {
+                                            originalBitmap
+                                        }
+                                        val baos = ByteArrayOutputStream()
+                                        scaledBitmap.compress(Bitmap.CompressFormat.JPEG, 80, baos)
+                                        photoBase64 = Base64.encodeToString(baos.toByteArray(), Base64.NO_WRAP)
+                                    }
+                                } catch (e: Throwable) {
+                                    // Proceed without photo if encoding fails
+                                }
+                            }
+
                             GoogleSheetMasjidSync.submitMasjidRequestAuto(
-                                name = masjidName,
-                                location = location,
-                                adminName = adminName,
-                                contact = adminContact
+                                name = masjidName.trim(),
+                                location = location.trim(),
+                                adminName = adminName.trim(),
+                                contact = adminContact.trim(),
+                                photoBase64 = photoBase64,
+                                photoName = "${masjidName.trim()} - Photo.jpg"
                             )
                             isSending = false
                             onSubmitted()

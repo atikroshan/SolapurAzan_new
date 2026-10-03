@@ -419,6 +419,12 @@ fun AzanScreen(viewModel: AzanViewModel, uiState: com.example.ui.UIState, modifi
                             },
                             onRestorePoints = { points ->
                                 viewModel.setRestoredTaqwaPoints(points)
+                            },
+                            onBackupTaqwa = { userId, onResult ->
+                                viewModel.backupTaqwa(userId, onResult)
+                            },
+                            onRestoreTaqwa = { userId, onResult ->
+                                viewModel.restoreTaqwa(userId, onResult)
                             }
                         )
                     }
