@@ -576,33 +576,35 @@ fun SupportScreen(
                             .fillMaxWidth()
                             .padding(14.dp)
                     ) {
-                        // Top Row: Rating (default 0.0) + Interactive Half Stars + Trusted by .... worshippers (Left) | Rate Us -> (Right)
+                        // Top Row: App Rating (e.g. 4.8) + Stars + Trusted by .... worshippers (Left) | Rate Us -> (Right)
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            val currentDisplayRating = userRating
+                            val appRatingDisplay = if (averageRating > 0.0) averageRating else 4.8
                             Column {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
                                     Text(
-                                        text = String.format(Locale.US, "%.1f", currentDisplayRating),
+                                        text = String.format(Locale.US, "%.1f", appRatingDisplay),
                                         fontSize = 20.sp,
                                         fontWeight = FontWeight.Black,
                                         color = Color.White
                                     )
-                                    // 5 Golden Interactive Stars supporting Half Stars (left half = half point e.g. 2.5, right half = full point)
-                                    InteractiveHalfStarRatingBar(
-                                        rating = currentDisplayRating,
-                                        onRatingSelected = { newRating ->
-                                            userRating = newRating
-                                        },
-                                        starSize = 18.dp,
-                                        spacing = 3.dp
-                                    )
+                                    // 5 Golden App Rating Stars
+                                    Row(horizontalArrangement = Arrangement.spacedBy(2.5.dp)) {
+                                        for (i in 1..5) {
+                                            val fillRatio = when {
+                                                appRatingDisplay >= i -> 1f
+                                                appRatingDisplay >= i - 0.5 -> 0.5f
+                                                else -> 0f
+                                            }
+                                            StarIconDisplay(fillRatio = fillRatio, size = 16.dp)
+                                        }
+                                    }
                                 }
 
                                 Spacer(modifier = Modifier.height(2.dp))
@@ -633,36 +635,27 @@ fun SupportScreen(
                             }
                         }
 
-                        // Submit Rating Button if user selected a rating
+                        // Given to App Text (replaces the yellow button)
                         if (userRating > 0.0) {
-                            Spacer(modifier = Modifier.height(10.dp))
-                            Button(
-                                onClick = {
-                                    try {
-                                        prefs.edit().putFloat("saved_stars", userRating.toFloat()).apply()
-                                    } catch (e: Throwable) {}
-                                    coroutineScope.launch {
-                                        try {
-                                            GoogleSheetMasjidSync.submitRating(userRating)
-                                        } catch (t: Throwable) {}
-                                    }
-                                    Toast.makeText(
-                                        context,
-                                        "⭐⭐⭐⭐⭐ JazakAllah Khair for rating ${String.format(Locale.US, "%.1f", userRating)} stars!",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                },
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE5B842)),
-                                shape = RoundedCornerShape(10.dp),
+                            Spacer(modifier = Modifier.height(8.dp))
+                            val starCount = userRating.toInt().coerceIn(1, 5)
+                            val starEmojis = "⭐".repeat(starCount)
+                            Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(38.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color(0xFF0F261C))
+                                    .border(1.dp, Color(0xFF1E4C38), RoundedCornerShape(8.dp))
+                                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "Submit Rating (${String.format(Locale.US, "%.1f", userRating)} ★) to Google Sheet",
-                                    color = Color(0xFF0F1713),
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 12.sp
+                                    text = "$starEmojis (${String.format(Locale.US, "%.1f", userRating)} ★) given to app",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFF34D399),
+                                    textAlign = TextAlign.Center
                                 )
                             }
                         }
@@ -804,7 +797,7 @@ fun SupportScreen(
 
     // Rate Us Interactive Dialog (Supports Half-Stars e.g. 2.5 and Saves to Google Sheet)
     if (showRateUsDialog) {
-        var tempRating by remember { mutableDoubleStateOf(if (userRating > 0.0) userRating else 0.0) }
+        var tempRating by remember { mutableDoubleStateOf(if (userRating > 0.0) userRating else 5.0) }
         var isSubmitting by remember { mutableStateOf(false) }
 
         Dialog(onDismissRequest = { showRateUsDialog = false }) {
