@@ -12,8 +12,10 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -66,7 +68,7 @@ fun SupportScreen(
 
     // Rating system: default starts with 0 stars
     val prefs = remember { context.getSharedPreferences("azan_user_rating", Context.MODE_PRIVATE) }
-    var userRating by remember { mutableIntStateOf(prefs.getInt("saved_stars", 0)) }
+    var userRating by remember { mutableDoubleStateOf(prefs.getFloat("saved_stars", 0f).toDouble()) }
     var averageRating by remember { mutableDoubleStateOf(4.8) }
     var totalReviews by remember { mutableIntStateOf(0) }
 
@@ -365,36 +367,62 @@ fun SupportScreen(
                             )
                         }
 
-                        // Compact Stars
+                        // Interactive Star Rating (5 empty stars)
                         Row(
-                            horizontalArrangement = Arrangement.spacedBy(2.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(horizontal = 4.dp)
+                                .pointerInput(Unit) {
+                                    detectHorizontalDragGestures { change, dragAmount ->
+                                        change.consume()
+                                        val newRating = (userRating + (dragAmount / 50.0)).coerceIn(0.0, 5.0)
+                                        userRating = newRating
+                                        prefs.edit().putFloat("saved_stars", newRating.toFloat()).apply()
+                                    }
+                                }
+                                .clickable {
+                                    coroutineScope.launch {
+                                        GoogleSheetMasjidSync.submitRating(userRating.toInt())
+                                    }
+                                    Toast.makeText(
+                                        context,
+                                        "⭐⭐⭐⭐⭐ Thank you for rating ${"%.1f".format(Locale.US, userRating)} stars!",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
                         ) {
-                            for (starIndex in 1..5) {
-                                val isFilled = starIndex <= userRating
-                                Icon(
-                                    imageVector = if (isFilled) Icons.Default.Star else Icons.Outlined.StarBorder,
-                                    contentDescription = "Star $starIndex",
-                                    tint = if (isFilled) Color(0xFFFFD700) else Color(0xFFFFD700).copy(alpha = 0.35f),
-                                    modifier = Modifier
-                                        .size(20.dp)
-                                        .clickable {
-                                            userRating = starIndex
-                                            prefs.edit().putInt("saved_stars", starIndex).apply()
-                                            coroutineScope.launch {
-                                                GoogleSheetMasjidSync.submitRating(starIndex)
-                                            }
-                                            Toast.makeText(
-                                                context,
-                                                "⭐⭐⭐⭐⭐ Thank you for rating $starIndex stars!",
-                                                Toast.LENGTH_SHORT
-                                            ).show()
-                                        }
-                                )
+                            for (i in 1..5) {
+                                val starFill = (userRating - (i - 1)).coerceIn(0.0, 1.0)
+                                Box(modifier = Modifier.size(24.dp)) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.StarBorder,
+                                        contentDescription = null,
+                                        tint = Color(0xFFFFD700).copy(alpha = 0.35f)
+                                    )
+                                    if (starFill > 0) {
+                                        Icon(
+                                            imageVector = Icons.Filled.Star,
+                                            contentDescription = null,
+                                            tint = Color(0xFFFFD700),
+                                            modifier = Modifier.clip(
+                                                androidx.compose.ui.graphics.RectangleShape
+                                            )
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
                 }
+                
+                // Show selected rating text
+                Text(
+                    text = "Rating: ${"%.1f".format(Locale.US, userRating)}",
+                    color = Color.White,
+                    modifier = Modifier.padding(top = 4.dp, start = 12.dp)
+                )
 
                 // 6. Version Number & Powered by @tek
                 Column(
