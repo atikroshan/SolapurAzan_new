@@ -375,22 +375,24 @@ fun SupportScreen(
                                 .weight(1f)
                                 .padding(horizontal = 4.dp)
                                 .pointerInput(Unit) {
-                                    detectHorizontalDragGestures { change, dragAmount ->
-                                        change.consume()
-                                        val newRating = (userRating + (dragAmount / 50.0)).coerceIn(0.0, 5.0)
-                                        userRating = newRating
-                                        prefs.edit().putFloat("saved_stars", newRating.toFloat()).apply()
-                                    }
-                                }
-                                .clickable {
-                                    coroutineScope.launch {
-                                        GoogleSheetMasjidSync.submitRating(userRating.toInt())
-                                    }
-                                    Toast.makeText(
-                                        context,
-                                        "⭐⭐⭐⭐⭐ Thank you for rating ${"%.1f".format(Locale.US, userRating)} stars!",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
+                                    detectHorizontalDragGestures(
+                                        onDragEnd = {
+                                            coroutineScope.launch {
+                                                GoogleSheetMasjidSync.submitRating(userRating.toInt())
+                                            }
+                                            Toast.makeText(
+                                                context,
+                                                "⭐⭐⭐⭐⭐ Thank you for rating ${"%.1f".format(Locale.US, userRating)} stars!",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        },
+                                        onHorizontalDrag = { change, dragAmount ->
+                                            change.consume()
+                                            val newRating = (userRating + (dragAmount / 50.0)).coerceIn(0.0, 5.0)
+                                            userRating = newRating
+                                            prefs.edit().putFloat("saved_stars", newRating.toFloat()).apply()
+                                        }
+                                    )
                                 }
                         ) {
                             for (i in 1..5) {
