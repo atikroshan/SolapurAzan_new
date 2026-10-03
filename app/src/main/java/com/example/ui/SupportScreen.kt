@@ -358,7 +358,7 @@ fun SupportScreen(
                                 color = Color.White.copy(alpha = 0.8f)
                             )
                             Text(
-                                text = String.format(Locale.US, "%.1f", averageRating),
+                                text = String.format(Locale.US, "%.1f", if (userRating > 0) userRating.toDouble() else averageRating),
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Black,
                                 color = Color(0xFFFFD700)
@@ -381,10 +381,6 @@ fun SupportScreen(
                                         .clickable {
                                             userRating = starIndex
                                             prefs.edit().putInt("saved_stars", starIndex).apply()
-                                            val newTotalReviews = totalReviews + 1
-                                            val newAvg = ((averageRating * totalReviews) + starIndex) / newTotalReviews
-                                            averageRating = newAvg
-                                            totalReviews = newTotalReviews
                                             coroutineScope.launch {
                                                 GoogleSheetMasjidSync.submitRating(starIndex)
                                             }
