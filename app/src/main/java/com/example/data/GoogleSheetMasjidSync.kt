@@ -277,7 +277,7 @@ function handleRequest(e) {
       var name = (p.name || "").toString().trim();
       var loc = (p.location || p.address || "").toString().trim();
       var photoData = p.photoData || "";
-      var photoName = (p.photoName || (name + " - Photo.jpg")).toString().trim();
+      var photoName = (p.photoName || (name + ".jpg")).toString().trim();
       var photoUrl = "";
       
       if (photoData) {
@@ -296,18 +296,18 @@ function handleRequest(e) {
       var sheet = ss.getSheetByName("Sheet1") || ss.getActiveSheet();
       
       // 1. Leave one empty row below the last row
-      sheet.appendRow([""]);
+      sheet.appendRow(["", "", "", "", "", "", ""]);
       
       // 2. Append the 1-to-9 row block matching the exact template:
-      sheet.appendRow(["Masjid Name", name]);
-      sheet.appendRow(["Address", loc]);
-      sheet.appendRow(["ID", ""]);
-      sheet.appendRow(["Masjid Photo", photoUrl]);
+      sheet.appendRow(["Masjid Name", name, "", "", "", "", ""]);
+      sheet.appendRow(["Address", loc, "", "", "", "", ""]);
+      sheet.appendRow(["ID", "", "", "", "", "", ""]);
+      sheet.appendRow(["Masjid Photo", photoUrl, "", "", "", "", ""]);
       sheet.appendRow(["", "Fajr", "Zohar", "Asr", "Maghrib", "Isha", "Jummah"]);
       sheet.appendRow(["Azan", "05:50", "01:15", "05:35", "06:10", "07:50", "12:48"]);
       sheet.appendRow(["Jammat", "06:20", "01:30", "05:45", "06:12", "07:59", "01:30"]);
-      sheet.appendRow(["Admin ID", "admin"]);
-      sheet.appendRow(["Password", ""]);
+      sheet.appendRow(["Admin ID", "admin", "", "", "", "", ""]);
+      sheet.appendRow(["Password", "", "", "", "", "", ""]);
       
       return ContentService.createTextOutput(JSON.stringify({
         status: "success",

@@ -399,7 +399,7 @@ fun SupportScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "★ SADAQAH JARIYAH",
+                                text = "SADAQAH JARIYAH",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = primaryGold,
@@ -408,17 +408,6 @@ fun SupportScreen(
                         }
 
                         Spacer(modifier = Modifier.height(10.dp))
-
-                        // Heading
-                        Text(
-                            text = "Keep Azan Time 100% Free & Ad-Free",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White,
-                            textAlign = TextAlign.Center
-                        )
-
-                        Spacer(modifier = Modifier.height(6.dp))
 
                         // Subtitle
                         Text(
@@ -580,53 +569,12 @@ fun SupportScreen(
                             .fillMaxWidth()
                             .padding(14.dp)
                     ) {
-                        // Top Row: App Rating (e.g. 4.8) + Stars + Trusted by .... worshippers (Left) | Rate Us -> (Right)
+                        // Top Row: Rate Us Button (Left) & User Given Stars (Right / Beside it)
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            val appRatingDisplay = if (averageRating > 0.0) averageRating else 4.8
-                            Column {
-                                Text(
-                                    text = "App Rating",
-                                    fontSize = 11.5.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = primaryGold
-                                )
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    Text(
-                                        text = String.format(Locale.US, "%.1f", appRatingDisplay),
-                                        fontSize = 20.sp,
-                                        fontWeight = FontWeight.Black,
-                                        color = Color.White
-                                    )
-                                    // 5 Golden App Rating Stars
-                                    Row(horizontalArrangement = Arrangement.spacedBy(2.5.dp)) {
-                                        for (i in 1..5) {
-                                            val fillRatio = when {
-                                                appRatingDisplay >= i -> 1f
-                                                appRatingDisplay >= i - 0.5 -> 0.5f
-                                                else -> 0f
-                                            }
-                                            StarIconDisplay(fillRatio = fillRatio, size = 16.dp)
-                                        }
-                                    }
-                                }
-
-                                Spacer(modifier = Modifier.height(2.dp))
-
-                                Text(
-                                    text = "Trusted by .... worshippers",
-                                    fontSize = 11.sp,
-                                    color = Color.White.copy(alpha = 0.65f)
-                                )
-                            }
-
                             // Rate Us Button
                             Box(
                                 modifier = Modifier
@@ -644,31 +592,63 @@ fun SupportScreen(
                                     color = primaryGold
                                 )
                             }
-                        }
 
-                        // Given to App Text (replaces the yellow button)
-                        if (userRating > 0.0) {
-                            Spacer(modifier = Modifier.height(8.dp))
-                            val starCount = userRating.toInt().coerceIn(1, 5)
-                            val starEmojis = "⭐".repeat(starCount)
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(Color(0xFF0F261C))
-                                    .border(1.dp, Color(0xFF1E4C38), RoundedCornerShape(8.dp))
-                                    .padding(horizontal = 12.dp, vertical = 6.dp),
-                                horizontalArrangement = Arrangement.Center,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
+                            // Beside Rate Us: Given star rating
+                            if (userRating > 0.0) {
+                                val starCount = userRating.toInt().coerceIn(1, 5)
+                                val starEmojis = "⭐".repeat(starCount)
                                 Text(
-                                    text = "$starEmojis (${String.format(Locale.US, "%.1f", userRating)} ★) given to app",
+                                    text = "$starEmojis (${String.format(Locale.US, "%.1f", userRating)} ★)",
                                     fontSize = 12.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = Color(0xFF34D399),
-                                    textAlign = TextAlign.Center
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF34D399)
                                 )
                             }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // Below Rate Us: App Rating Section
+                        val appRatingDisplay = if (averageRating > 0.0) averageRating else 4.8
+                        Column {
+                            Text(
+                                text = "App Rating",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = primaryGold
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Text(
+                                    text = String.format(Locale.US, "%.1f", appRatingDisplay),
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = Color.White
+                                )
+                                // 5 Golden App Rating Stars
+                                Row(horizontalArrangement = Arrangement.spacedBy(2.5.dp)) {
+                                    for (i in 1..5) {
+                                        val fillRatio = when {
+                                            appRatingDisplay >= i -> 1f
+                                            appRatingDisplay >= i - 0.5 -> 0.5f
+                                            else -> 0f
+                                        }
+                                        StarIconDisplay(fillRatio = fillRatio, size = 16.dp)
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(3.dp))
+
+                            // Below App Rating: Trusted by 1000+ worshippers
+                            Text(
+                                text = "Trusted by 1000+ worshippers",
+                                fontSize = 11.sp,
+                                color = Color.White.copy(alpha = 0.65f)
+                            )
                         }
 
                         Spacer(modifier = Modifier.height(12.dp))
@@ -1190,7 +1170,7 @@ fun AddMasjidAutoDialog(
                     )
                 }
 
-                // Send Button (Direct Auto Send to Email without app redirect)
+                // Submit Request Button (Uploads photo to Google Drive & inserts 9 rows into Sheet1)
                 Button(
                     onClick = {
                         if (masjidName.isBlank()) {
@@ -1213,6 +1193,7 @@ fun AddMasjidAutoDialog(
                         isSending = true
                         coroutineScope.launch {
                             var photoBase64: String? = null
+                            val cleanMasjidName = masjidName.trim()
                             if (selectedPhotoUri != null) {
                                 try {
                                     val inputStream = context.contentResolver.openInputStream(selectedPhotoUri!!)
@@ -1240,15 +1221,21 @@ fun AddMasjidAutoDialog(
                                 }
                             }
 
-                            GoogleSheetMasjidSync.submitMasjidRequestAuto(
-                                name = masjidName.trim(),
+                            com.example.data.GoogleSheetMasjidSync.submitMasjidRequestAuto(
+                                name = cleanMasjidName,
                                 location = location.trim(),
                                 adminName = adminName.trim(),
                                 contact = adminContact.trim(),
                                 photoBase64 = photoBase64,
-                                photoName = "${masjidName.trim()} - Photo.jpg"
+                                photoName = "$cleanMasjidName.jpg"
                             )
                             isSending = false
+                            val successMsg = when (language) {
+                                "ur" -> "درخواست اور تصویر گوگل شیٹ (Sheet1) میں محفوظ ہو گئی۔ جزاک اللہ خیر۔"
+                                "hi" -> "अनुरोध और फोटो गूगल शीट (Sheet1) में सेव हो गया। जज़ाकल्लाह ख़ैर।"
+                                else -> "Masjid request & photo saved to Sheet1 successfully! JazakAllah khair."
+                            }
+                            Toast.makeText(context, successMsg, Toast.LENGTH_LONG).show()
                             onSubmitted()
                         }
                     },
@@ -1267,8 +1254,8 @@ fun AddMasjidAutoDialog(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Sending...",
-                            fontSize = 13.5.sp,
+                            text = "Uploading to Drive & Sheet...",
+                            fontSize = 12.5.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.White
                         )
