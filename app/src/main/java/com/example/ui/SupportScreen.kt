@@ -990,6 +990,8 @@ fun AddMasjidAutoDialog(
     var selectedPhotoUri by remember { mutableStateOf<Uri?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var isSending by remember { mutableStateOf(false) }
+    var showScriptUpdateHelpDialog by remember { mutableStateOf(false) }
+    var serverErrorDetail by remember { mutableStateOf("") }
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
@@ -1221,7 +1223,7 @@ fun AddMasjidAutoDialog(
                                 }
                             }
 
-                            com.example.data.GoogleSheetMasjidSync.submitMasjidRequestAuto(
+                            val result = com.example.data.GoogleSheetMasjidSync.submitMasjidRequestAuto(
                                 name = cleanMasjidName,
                                 location = location.trim(),
                                 adminName = adminName.trim(),
@@ -1230,13 +1232,19 @@ fun AddMasjidAutoDialog(
                                 photoName = "$cleanMasjidName.jpg"
                             )
                             isSending = false
-                            val successMsg = when (language) {
-                                "ur" -> "درخواست اور تصویر گوگل شیٹ (Sheet1) میں محفوظ ہو گئی۔ جزاک اللہ خیر۔"
-                                "hi" -> "अनुरोध और फोटो गूगल शीट (Sheet1) में सेव हो गया। जज़ाकल्लाह ख़ैर।"
-                                else -> "Masjid request & photo saved to Sheet1 successfully! JazakAllah khair."
+                            if (result.first) {
+                                val successMsg = when (language) {
+                                    "ur" -> "درخواست اور تصویر گوگل شیٹ (Sheet1) میں محفوظ ہو گئی۔ جزاک اللہ خیر۔"
+                                    "hi" -> "अनुरोध और फोटो गूगल शीट (Sheet1) में सेव हो गया। जज़ाकल्लाह ख़ैर।"
+                                    else -> "Masjid request & photo saved to Sheet1 successfully! JazakAllah khair."
+                                }
+                                Toast.makeText(context, successMsg, Toast.LENGTH_LONG).show()
+                                onSubmitted()
+                            } else {
+                                errorMessage = result.second
+                                serverErrorDetail = result.second
+                                showScriptUpdateHelpDialog = true
                             }
-                            Toast.makeText(context, successMsg, Toast.LENGTH_LONG).show()
-                            onSubmitted()
                         }
                     },
                     enabled = !isSending,
@@ -1280,6 +1288,93 @@ fun AddMasjidAutoDialog(
                     }
                 }
             }
+        }
+
+        if (showScriptUpdateHelpDialog) {
+            AlertDialog(
+                onDismissRequest = { showScriptUpdateHelpDialog = false },
+                title = {
+                    Text(
+                        text = "Google Apps Script Update Required",
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFF3DE8E),
+                        fontSize = 16.sp
+                    )
+                },
+                text = {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.verticalScroll(rememberScrollState())
+                    ) {
+                        Text(
+                            text = "Server Error: $serverErrorDetail",
+                            fontSize = 12.sp,
+                            color = Color(0xFFEF4444),
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Aapke Google Sheet ke Apps Script me naya code update nahi hai. Sheet me naya code daal kar 'Deploy > New Version' karein tab data & photo Sheet1 me jayega.",
+                            fontSize = 11.5.sp,
+                            color = Color.White.copy(alpha = 0.85f),
+                            lineHeight = 16.sp
+                        )
+                        
+                        Button(
+                            onClick = {
+                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                                val clip = android.content.ClipData.newPlainText("AppsScriptCode", com.example.data.GoogleSheetMasjidSync.APPS_SCRIPT_SAMPLE_CODE)
+                                clipboard.setPrimaryClip(clip)
+                                Toast.makeText(context, "Apps Script Code Copied to Clipboard! ✓", Toast.LENGTH_LONG).show()
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E293B)),
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, Color(0xFF38BDF8)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = "📋 Copy Latest Apps Script Code",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF38BDF8)
+                            )
+                        }
+
+                        Button(
+                            onClick = {
+                                val cleanName = masjidName.trim()
+                                val cleanLoc = location.trim()
+                                val cleanAdmin = adminName.trim()
+                                val cleanContact = adminContact.trim()
+                                val msg = "🕌 *Request Add Masjid*\n*Name:* $cleanName\n*Address:* $cleanLoc\n*Admin:* $cleanAdmin\n*Contact:* $cleanContact"
+                                val intent = Intent(Intent.ACTION_VIEW).apply {
+                                    data = Uri.parse("https://api.whatsapp.com/send?phone=919960171516&text=" + Uri.encode(msg))
+                                }
+                                try {
+                                    context.startActivity(intent)
+                                } catch (e: Exception) {
+                                    Toast.makeText(context, "WhatsApp not installed", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = "💬 Send Request via WhatsApp",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showScriptUpdateHelpDialog = false }) {
+                        Text("OK", color = Color(0xFFF3DE8E), fontWeight = FontWeight.Bold)
+                    }
+                },
+                containerColor = Color(0xFF0F172A)
+            )
         }
     }
 }

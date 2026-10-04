@@ -791,19 +791,8 @@ function handleRequest(e) {
         contact: String,
         photoBase64: String? = null,
         photoName: String? = null
-    ): Boolean = withContext(Dispatchers.IO) {
-        var sent = false
-        // Send directly to Google Apps Script -> Inserts 9-row template into Sheet1 and saves photo to Google Drive
+    ): Pair<Boolean, String> = withContext(Dispatchers.IO) {
         try {
-            val url = URL(APPS_SCRIPT_WEBAPP_URL)
-            val conn = (url.openConnection() as HttpURLConnection).apply {
-                requestMethod = "POST"
-                doOutput = true
-                setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
-                connectTimeout = 15000
-                readTimeout = 15000
-                instanceFollowRedirects = true
-            }
             val postData = StringBuilder()
             postData.append("action=").append(java.net.URLEncoder.encode("requestMasjidToSheet", "UTF-8"))
             postData.append("&name=").append(java.net.URLEncoder.encode(name, "UTF-8"))
@@ -812,16 +801,62 @@ function handleRequest(e) {
             postData.append("&contact=").append(java.net.URLEncoder.encode(contact, "UTF-8"))
             if (!photoBase64.isNullOrBlank()) {
                 postData.append("&photoData=").append(java.net.URLEncoder.encode(photoBase64, "UTF-8"))
-                postData.append("&photoName=").append(java.net.URLEncoder.encode(photoName ?: "$name - Photo.jpg", "UTF-8"))
+                postData.append("&photoName=").append(java.net.URLEncoder.encode(photoName ?: "$name.jpg", "UTF-8"))
+            }
+            val postBytes = postData.toString().toByteArray(Charsets.UTF_8)
+
+            var conn = (URL(APPS_SCRIPT_WEBAPP_URL).openConnection() as HttpURLConnection).apply {
+                requestMethod = "POST"
+                doOutput = true
+                instanceFollowRedirects = false
+                setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
+                connectTimeout = 20000
+                readTimeout = 20000
             }
             conn.outputStream.use { os ->
-                os.write(postData.toString().toByteArray(Charsets.UTF_8))
+                os.write(postBytes)
             }
-            if (conn.responseCode in 200..399) sent = true
+
+            var responseCode = conn.responseCode
+            // Follow 302 redirect from Google Apps Script
+            if (responseCode in listOf(301, 302, 303, 307, 308)) {
+                val redirectUrl = conn.getHeaderField("Location")
+                if (!redirectUrl.isNullOrBlank()) {
+                    conn.disconnect()
+                    conn = (URL(redirectUrl).openConnection() as HttpURLConnection).apply {
+                        requestMethod = "GET"
+                        connectTimeout = 20000
+                        readTimeout = 20000
+                    }
+                    responseCode = conn.responseCode
+                }
+            }
+
+            val responseText = if (responseCode in 200..399) {
+                conn.inputStream.bufferedReader().use { it.readText() }
+            } else {
+                conn.errorStream?.bufferedReader()?.use { it.readText() } ?: "HTTP $responseCode"
+            }
+            conn.disconnect()
+
+            try {
+                val json = org.json.JSONObject(responseText)
+                if (json.optString("status") == "success") {
+                    Pair(true, json.optString("message", "Masjid $name saved to Sheet1 successfully!"))
+                } else {
+                    val err = json.optString("message", "Submission error")
+                    Pair(false, err)
+                }
+            } catch (e: Exception) {
+                if (responseCode in 200..399) {
+                    Pair(true, "Submitted successfully!")
+                } else {
+                    Pair(false, "Server responded with HTTP $responseCode: $responseText")
+                }
+            }
         } catch (e: Exception) {
-            // Fallback
+            Pair(false, e.message ?: "Connection failed. Please check internet connection.")
         }
-        true
     }
 
     suspend fun backupTaqwaToCloud(
