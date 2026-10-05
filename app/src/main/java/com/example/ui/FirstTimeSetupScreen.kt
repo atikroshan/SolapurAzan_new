@@ -67,10 +67,16 @@ fun FirstTimeSetupScreen(
     onSelectMasjid: (MasjidItem) -> Unit,
     onFinishSetup: (String) -> Unit,
     onBack: (() -> Unit)? = null,
+    onRefresh: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val isChangeMode = onBack != null
+
+    // Auto-refresh masajid list from Google Sheet whenever Search/Setup screen opens
+    LaunchedEffect(Unit) {
+        onRefresh()
+    }
 
     var searchQuery by remember { mutableStateOf("") }
     var isSearchFocused by remember { mutableStateOf(false) }

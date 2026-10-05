@@ -42,6 +42,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -62,6 +65,7 @@ fun SupportScreen(
     uiState: UIState,
     onBack: () -> Unit,
     onLangSelect: (String) -> Unit = {},
+    onMasjidSubmitted: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -952,32 +956,40 @@ fun SupportScreen(
                 )
             },
             text = {
+                val annotatedText = buildAnnotatedString {
+                    append("Please wait ")
+                    withStyle(
+                        style = SpanStyle(
+                            color = Color(0xFFFBBF24),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp
+                        )
+                    ) {
+                        append("(5 Min)")
+                    }
+                    append("\nYour Masjid will be live.")
+                }
                 Text(
-                    text = when (uiState.language) {
-                        "ur" -> "مسجد کی تفصیلات گوگل شیٹ (Sheet1) اور فوٹو گوگل ڈرائیو میں کامیابی کے ساتھ درج کر دی گئی ہیں۔ ایڈمن جانچ کے بعد جلد ایکٹیو کر دیں گے۔"
-                        "hi" -> "मस्जिद की जानकारी गूगल शीट (Sheet1) और फोटो गूगल ड्राइव में सफलतापूर्वक दर्ज कर दी गई है। जांच के बाद इसे जल्द ही ऐप में लाइव कर दिया जाएगा।"
-                        else -> "Masjid details successfully submitted to Google Sheet (Sheet1) and photo to Google Drive! ID & Password can now be added in the sheet."
-                    },
-                    fontSize = 13.sp,
-                    color = Color.White.copy(alpha = 0.9f),
+                    text = annotatedText,
+                    fontSize = 14.5.sp,
+                    color = Color.White.copy(alpha = 0.95f),
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth(),
-                    lineHeight = 18.sp
+                    lineHeight = 22.sp
                 )
             },
             confirmButton = {
                 Button(
-                    onClick = { showThanksDialog = false },
+                    onClick = {
+                        showThanksDialog = false
+                        onMasjidSubmitted()
+                    },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
                     shape = RoundedCornerShape(10.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        text = when (uiState.language) {
-                            "ur" -> "ٹھیک ہے"
-                            "hi" -> "ठीक है"
-                            else -> "OK"
-                        },
+                        text = "OK",
                         fontWeight = FontWeight.Bold,
                         color = Color.White
                     )
@@ -1368,23 +1380,42 @@ fun AddMasjidAutoDialog(
                             )
                         }
                         Text(
-                            text = "Masjid Details Successfully Submitted",
+                            text = "Request Received! 👍",
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF10B981),
-                            fontSize = 16.sp,
+                            fontSize = 18.sp,
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center
                         )
                     }
                 },
                 text = {
-                    Text(
-                        text = "JazakAllah Khair!",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color.White,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth().padding(top = 2.dp)
-                    )
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        val annotatedText = buildAnnotatedString {
+                            append("Please wait ")
+                            withStyle(
+                                style = SpanStyle(
+                                    color = Color(0xFFFBBF24),
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.sp
+                                )
+                            ) {
+                                append("(5 Min)")
+                            }
+                            append("\nYour Masjid will be live.")
+                        }
+                        Text(
+                            text = annotatedText,
+                            fontSize = 14.5.sp,
+                            fontWeight = FontWeight.Normal,
+                            color = Color.White,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
+                            lineHeight = 22.sp
+                        )
+                    }
                 },
                 confirmButton = {
                     Button(

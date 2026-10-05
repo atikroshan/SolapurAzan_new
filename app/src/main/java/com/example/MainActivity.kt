@@ -281,7 +281,8 @@ fun AzanScreen(viewModel: AzanViewModel, uiState: com.example.ui.UIState, modifi
                 viewModel.completeSetup(masjidId)
                 showMasjidSelectorScreen = false
             },
-            onBack = if (uiState.isSetupCompleted) { { showMasjidSelectorScreen = false } } else null
+            onBack = if (uiState.isSetupCompleted) { { showMasjidSelectorScreen = false } } else null,
+            onRefresh = { viewModel.syncGoogleSheet() }
         )
     } else if (showAdminPanel) {
         BackHandler { showAdminPanel = false }
@@ -295,7 +296,8 @@ fun AzanScreen(viewModel: AzanViewModel, uiState: com.example.ui.UIState, modifi
         com.example.ui.SupportScreen(
             uiState = uiState,
             onBack = { showSupportScreen = false },
-            onLangSelect = { viewModel.setLanguage(it) }
+            onLangSelect = { viewModel.setLanguage(it) },
+            onMasjidSubmitted = { viewModel.syncGoogleSheet() }
         )
     } else {
         if (showUpdateDialog && availableUpdateInfo != null) {

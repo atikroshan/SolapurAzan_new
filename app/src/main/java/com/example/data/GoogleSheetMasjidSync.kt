@@ -677,7 +677,15 @@ function handleRequest(e) {
         var jammatTimes = listOf<String>()
 
         fun flushCurrent() {
-            if (currentName.isNotBlank() && currentId.isNotBlank()) {
+            if (currentName.isNotBlank()) {
+                val finalId = if (currentId.isNotBlank()) {
+                    currentId.trim()
+                } else {
+                    // Generate stable 9-digit numeric ID if admin hasn't filled ID column yet
+                    val num = Math.abs(currentName.trim().hashCode() % 900000 + 100000)
+                    "100$num"
+                }
+
                 // Azan: Fajr (AM), Zohar (PM), Asr (PM), Maghrib (PM), Isha (PM), Jummah (12:30 PM)
                 val fAzan = azanTimes.getOrNull(0)?.trim()?.takeIf { it.isNotEmpty() }?.let { to24Hr(it, false) } ?: "05:40"
                 val zAzan = azanTimes.getOrNull(1)?.trim()?.takeIf { it.isNotEmpty() }?.let { to24Hr(it, true) } ?: "13:15"
@@ -697,9 +705,9 @@ function handleRequest(e) {
                 val directPhoto = extractGoogleDriveDirectUrl(currentPhoto)
 
                 val masjidItem = MasjidItem(
-                    id = currentId.trim(),
+                    id = finalId,
                     name = currentName.trim(),
-                    area = currentAddress.trim(),
+                    area = currentAddress.trim().ifBlank { "Solapur" },
                     city = "Solapur",
                     state = "Maharashtra",
                     photoUrl = directPhoto,
@@ -734,33 +742,51 @@ function handleRequest(e) {
             val line = rawLine.trim()
             if (line.isEmpty()) continue
 
-            val tokens = line.split(",").map { it.trim() }
+            val tokens = splitCsvTokens(line)
             if (tokens.isEmpty()) continue
 
-            val first = tokens[0]
-            if (first.equals("Masjid Name", ignoreCase = true)) {
-                if (currentName.isNotBlank() && currentId.isNotBlank()) {
+            val first = tokens[0].trim().lowercase(java.util.Locale.ROOT)
+            if (first.contains("masjid name")) {
+                if (currentName.isNotBlank()) {
                     flushCurrent()
                 }
-                currentName = tokens.getOrElse(1) { "" }
-            } else if (first.equals("Address", ignoreCase = true)) {
-                currentAddress = tokens.getOrElse(1) { "" }
-            } else if (first.equals("ID", ignoreCase = true)) {
-                currentId = tokens.getOrElse(1) { "" }
-            } else if (first.equals("Masjid Photo", ignoreCase = true)) {
-                currentPhoto = tokens.getOrElse(1) { "" }
-            } else if (first.equals("Azan", ignoreCase = true)) {
-                azanTimes = tokens.drop(1)
-            } else if (first.equals("Jammat", ignoreCase = true)) {
-                jammatTimes = tokens.drop(1)
-            } else if (first.equals("Admin ID", ignoreCase = true) || first.equals("AdminID", ignoreCase = true)) {
-                currentAdminId = tokens.getOrElse(1) { "admin" }
-            } else if (first.equals("Password", ignoreCase = true)) {
-                currentPassword = tokens.getOrElse(1) { "" }
+                currentName = tokens.getOrElse(1) { "" }.trim()
+            } else if (first == "address" || first.contains("location")) {
+                currentAddress = tokens.getOrElse(1) { "" }.trim()
+            } else if (first == "id") {
+                currentId = tokens.getOrElse(1) { "" }.trim()
+            } else if (first.contains("masjid photo") || first == "photo") {
+                currentPhoto = tokens.getOrElse(1) { "" }.trim()
+            } else if (first == "azan") {
+                azanTimes = tokens.drop(1).map { it.trim() }
+            } else if (first == "jammat") {
+                jammatTimes = tokens.drop(1).map { it.trim() }
+            } else if (first.contains("admin")) {
+                currentAdminId = tokens.getOrElse(1) { "admin" }.trim()
+            } else if (first == "password") {
+                currentPassword = tokens.getOrElse(1) { "" }.trim()
             }
         }
         flushCurrent()
         return list
+    }
+
+    private fun splitCsvTokens(line: String): List<String> {
+        val result = mutableListOf<String>()
+        val sb = java.lang.StringBuilder()
+        var inQuotes = false
+        for (c in line) {
+            if (c == '"') {
+                inQuotes = !inQuotes
+            } else if (c == ',' && !inQuotes) {
+                result.add(sb.toString().trim().removeSurrounding("\"").trim())
+                sb.setLength(0)
+            } else {
+                sb.append(c)
+            }
+        }
+        result.add(sb.toString().trim().removeSurrounding("\"").trim())
+        return result
     }
 
     const val RATING_SHEET_URL = "https://docs.google.com/spreadsheets/d/13l1dJh64fyOnpHFlw81iWKHZlA5ko0JVWJ_qoF43k0g/gviz/tq?tqx=out:csv&sheet=rating"
