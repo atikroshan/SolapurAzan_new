@@ -109,6 +109,16 @@ Password,9595996629,,,,,
     var APPS_SCRIPT_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbzFcxYewugV5G374vGK2iHM0FnWSrbEMvlKNLC8l-CSxpA_GbstWK5tW8IXWp2P_8Ud/exec"
 
     val APPS_SCRIPT_SAMPLE_CODE = """
+function myFunction() {
+  var file = DriveApp.createFile("test_auth.txt", "Drive Permission Test");
+  file.setTrashed(true);
+  Logger.log("Drive write permission granted!");
+}
+
+function testDrive() {
+  myFunction();
+}
+
 function doGet(e) {
   return handleRequest(e);
 }
@@ -284,30 +294,55 @@ function handleRequest(e) {
         try {
           var bytes = Utilities.base64Decode(photoData);
           var blob = Utilities.newBlob(bytes, "image/jpeg", photoName);
-          var file = DriveApp.createFile(blob);
+          var folder;
+          try {
+            folder = DriveApp.getFolderById("1zEbq9A1LvGk-etUfVcMHUhKd6bqVH01n");
+          } catch(fe) {
+            folder = DriveApp.getRootFolder();
+          }
+          var file = folder.createFile(blob);
           file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
           photoUrl = file.getUrl();
         } catch (e) {
-          photoUrl = "";
+          photoUrl = "Error: " + e.toString();
         }
       }
       
       var ss = SpreadsheetApp.getActiveSpreadsheet();
       var sheet = ss.getSheetByName("Sheet1") || ss.getActiveSheet();
       
-      // 1. Leave one empty row below the last row
-      sheet.appendRow(["", "", "", "", "", "", ""]);
+      // 1. Leave exactly one empty row after the last data
+      var lastRow = sheet.getLastRow();
+      var startRow = lastRow > 0 ? (lastRow + 2) : 1;
       
-      // 2. Append the 1-to-9 row block matching the exact template:
-      sheet.appendRow(["Masjid Name", name, "", "", "", "", ""]);
-      sheet.appendRow(["Address", loc, "", "", "", "", ""]);
-      sheet.appendRow(["ID", "", "", "", "", "", ""]);
-      sheet.appendRow(["Masjid Photo", photoUrl, "", "", "", "", ""]);
-      sheet.appendRow(["", "Fajr", "Zohar", "Asr", "Maghrib", "Isha", "Jummah"]);
-      sheet.appendRow(["Azan", "05:50", "01:15", "05:35", "06:10", "07:50", "12:48"]);
-      sheet.appendRow(["Jammat", "06:20", "01:30", "05:45", "06:12", "07:59", "01:30"]);
-      sheet.appendRow(["Admin ID", "admin", "", "", "", "", ""]);
-      sheet.appendRow(["Password", "", "", "", "", "", ""]);
+      // 2. Prepare the 9 rows of data
+      var rows = [
+        ["Masjid Name", name, "", "", "", "", ""],
+        ["Address", loc, "", "", "", "", ""],
+        ["ID", "", "", "", "", "", ""],
+        ["Masjid Photo", photoUrl, "", "", "", "", ""],
+        ["", "Fajr", "Zohar", "Asr", "Maghrib", "Isha", "Jummah"],
+        ["Azan", "05:50", "01:15", "05:35", "06:10", "07:50", "12:48"],
+        ["Jammat", "06:20", "01:30", "05:45", "06:12", "07:59", "01:30"],
+        ["Admin ID", admin || "admin", "", "", "", "", ""],
+        ["Password", contact, "", "", "", "", ""]
+      ];
+      
+      // 3. Write all 9 rows to the sheet
+      sheet.getRange(startRow, 1, 9, 7).setValues(rows);
+      
+      // 4. Set Bold styling exactly matching existing rows:
+      // Rows 1-4 (Masjid Name, Address, ID, Masjid Photo) - Column A Bold
+      sheet.getRange(startRow, 1, 4, 1).setFontWeight("bold");
+      
+      // Row 5 (Fajr, Zohar, Asr, Maghrib, Isha, Jummah) - Columns B-G Bold & Centered
+      sheet.getRange(startRow + 4, 2, 1, 6).setFontWeight("bold").setHorizontalAlignment("center");
+      
+      // Rows 6-7 (Azan, Jammat times) - Columns B-G Centered
+      sheet.getRange(startRow + 5, 2, 2, 6).setHorizontalAlignment("center");
+      
+      // Rows 6-9 (Azan, Jammat, Admin ID, Password) - Column A Bold
+      sheet.getRange(startRow + 5, 1, 4, 1).setFontWeight("bold");
       
       return ContentService.createTextOutput(JSON.stringify({
         status: "success",

@@ -1347,21 +1347,32 @@ fun AddMasjidAutoDialog(
                     onSubmitted()
                 },
                 title = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.CheckCircle,
-                            contentDescription = "Success",
-                            tint = Color(0xFF10B981),
-                            modifier = Modifier.size(24.dp)
-                        )
+                        Box(
+                            modifier = Modifier
+                                .size(56.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF10B981).copy(alpha = 0.15f))
+                                .border(2.dp, Color(0xFF10B981), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ThumbUp,
+                                contentDescription = "Success",
+                                tint = Color(0xFF10B981),
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
                         Text(
                             text = "Masjid Details Successfully Submitted",
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF10B981),
-                            fontSize = 16.sp
+                            fontSize = 16.sp,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
                         )
                     }
                 },
@@ -1371,7 +1382,8 @@ fun AddMasjidAutoDialog(
                         fontSize = 15.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = Color.White,
-                        modifier = Modifier.padding(top = 4.dp)
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth().padding(top = 2.dp)
                     )
                 },
                 confirmButton = {
@@ -1381,13 +1393,16 @@ fun AddMasjidAutoDialog(
                             onSubmitted()
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
-                        shape = RoundedCornerShape(8.dp)
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(44.dp)
                     ) {
-                        Text("OK", color = Color.White, fontWeight = FontWeight.Bold)
+                        Text("OK", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                     }
                 },
                 containerColor = Color(0xFF0F172A),
-                shape = RoundedCornerShape(16.dp)
+                shape = RoundedCornerShape(20.dp)
             )
         }
     }
