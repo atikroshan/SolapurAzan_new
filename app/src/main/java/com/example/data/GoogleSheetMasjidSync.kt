@@ -106,7 +106,7 @@ Password,9595996629,,,,,
         return String.format(Locale.US, "%02d:%02d", h12, m)
     }
 
-    var APPS_SCRIPT_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbwNt9E_46DnmH_GJHZd16qBq0VpaN8GI9IKAQuwOaelfBKsWtXpiFlNTchF0rMgG4Lf/exec"
+    var APPS_SCRIPT_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbzFcxYewugV5G374vGK2iHM0FnWSrbEMvlKNLC8l-CSxpA_GbstWK5tW8IXWp2P_8Ud/exec"
 
     val APPS_SCRIPT_SAMPLE_CODE = """
 function doGet(e) {
@@ -790,11 +790,14 @@ function handleRequest(e) {
         adminName: String,
         contact: String,
         photoBase64: String? = null,
-        photoName: String? = null
+        photoName: String? = null,
+        webAppUrl: String? = null
     ): Pair<Boolean, String> = withContext(Dispatchers.IO) {
         try {
+            val targetUrl = webAppUrl?.trim()?.ifBlank { null } ?: APPS_SCRIPT_WEBAPP_URL.trim()
             val postData = StringBuilder()
             postData.append("action=").append(java.net.URLEncoder.encode("requestMasjidToSheet", "UTF-8"))
+            postData.append("&id=").append(System.currentTimeMillis())
             postData.append("&name=").append(java.net.URLEncoder.encode(name, "UTF-8"))
             postData.append("&location=").append(java.net.URLEncoder.encode(location, "UTF-8"))
             postData.append("&admin=").append(java.net.URLEncoder.encode(adminName, "UTF-8"))
@@ -805,7 +808,7 @@ function handleRequest(e) {
             }
             val postBytes = postData.toString().toByteArray(Charsets.UTF_8)
 
-            var conn = (URL(APPS_SCRIPT_WEBAPP_URL).openConnection() as HttpURLConnection).apply {
+            var conn = (URL(targetUrl).openConnection() as HttpURLConnection).apply {
                 requestMethod = "POST"
                 doOutput = true
                 instanceFollowRedirects = false

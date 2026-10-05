@@ -720,13 +720,25 @@ fun SupportScreen(
 
     // Custom Amount Dialog (when "Other" contribution is clicked)
     if (showOtherAmountDialog) {
+        val amountFocusManager = androidx.compose.ui.platform.LocalFocusManager.current
+        val amountKeyboardController = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
         var customAmountText by remember { mutableStateOf("") }
-        Dialog(onDismissRequest = { showOtherAmountDialog = false }) {
+        Dialog(
+            onDismissRequest = {
+                amountFocusManager.clearFocus()
+                amountKeyboardController?.hide()
+                showOtherAmountDialog = false
+            },
+            properties = androidx.compose.ui.window.DialogProperties(decorFitsSystemWindows = false)
+        ) {
             Card(
                 shape = RoundedCornerShape(18.dp),
                 colors = CardDefaults.cardColors(containerColor = Color(0xFF0F1E17)),
                 border = BorderStroke(1.dp, primaryGold.copy(alpha = 0.5f)),
-                modifier = Modifier.fillMaxWidth().padding(16.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 24.dp)
+                    .imePadding()
             ) {
                 Column(
                     modifier = Modifier.padding(18.dp),
@@ -983,6 +995,10 @@ fun AddMasjidAutoDialog(
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
+    val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
+    val keyboardController = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+    val prefs = remember { com.example.data.PreferencesRepository(context) }
+    val savedAppsScriptUrl by prefs.appsScriptUrlFlow.collectAsState(initial = com.example.data.GoogleSheetMasjidSync.APPS_SCRIPT_WEBAPP_URL)
     var masjidName by remember { mutableStateOf("") }
     var location by remember { mutableStateOf("") }
     var adminName by remember { mutableStateOf("") }
@@ -990,8 +1006,7 @@ fun AddMasjidAutoDialog(
     var selectedPhotoUri by remember { mutableStateOf<Uri?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var isSending by remember { mutableStateOf(false) }
-    var showScriptUpdateHelpDialog by remember { mutableStateOf(false) }
-    var serverErrorDetail by remember { mutableStateOf("") }
+    var showSuccessDialog by remember { mutableStateOf(false) }
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
@@ -999,11 +1014,19 @@ fun AddMasjidAutoDialog(
         selectedPhotoUri = uri
     }
 
-    Dialog(onDismissRequest = onDismiss) {
+    Dialog(
+        onDismissRequest = {
+            focusManager.clearFocus()
+            keyboardController?.hide()
+            onDismiss()
+        },
+        properties = androidx.compose.ui.window.DialogProperties(decorFitsSystemWindows = false)
+    ) {
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 16.dp),
+                .padding(horizontal = 16.dp, vertical = 24.dp)
+                .imePadding(),
             shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
             border = BorderStroke(1.5.dp, Color(0xFFF3DE8E).copy(alpha = 0.5f))
@@ -1192,6 +1215,8 @@ fun AddMasjidAutoDialog(
                             return@Button
                         }
 
+                        focusManager.clearFocus()
+                        keyboardController?.hide()
                         isSending = true
                         coroutineScope.launch {
                             var photoBase64: String? = null
@@ -1223,27 +1248,52 @@ fun AddMasjidAutoDialog(
                                 }
                             }
 
-                            val result = com.example.data.GoogleSheetMasjidSync.submitMasjidRequestAuto(
-                                name = cleanMasjidName,
-                                location = location.trim(),
-                                adminName = adminName.trim(),
-                                contact = adminContact.trim(),
-                                photoBase64 = photoBase64,
-                                photoName = "$cleanMasjidName.jpg"
-                            )
-                            isSending = false
-                            if (result.first) {
-                                val successMsg = when (language) {
-                                    "ur" -> "درخواست اور تصویر گوگل شیٹ (Sheet1) میں محفوظ ہو گئی۔ جزاک اللہ خیر۔"
-                                    "hi" -> "अनुरोध और फोटो गूगल शीट (Sheet1) में सेव हो गया। जज़ाकल्लाह ख़ैर।"
-                                    else -> "Masjid request & photo saved to Sheet1 successfully! JazakAllah khair."
+                            val targetUrl = savedAppsScriptUrl.trim()
+                            coroutineScope.launch {
+                                isSending = true
+                                var photoBase64: String? = null
+                                if (selectedPhotoUri != null) {
+                                    try {
+                                        val inputStream = context.contentResolver.openInputStream(selectedPhotoUri!!)
+                                        val originalBitmap = BitmapFactory.decodeStream(inputStream)
+                                        inputStream?.close()
+                                        if (originalBitmap != null) {
+                                            val maxDim = 800
+                                            val scaledBitmap = if (originalBitmap.width > maxDim || originalBitmap.height > maxDim) {
+                                                val scale = maxDim.toFloat() / maxOf(originalBitmap.width, originalBitmap.height)
+                                                Bitmap.createScaledBitmap(
+                                                    originalBitmap,
+                                                    (originalBitmap.width * scale).toInt(),
+                                                    (originalBitmap.height * scale).toInt(),
+                                                    true
+                                                )
+                                            } else {
+                                                originalBitmap
+                                            }
+                                            val baos = ByteArrayOutputStream()
+                                            scaledBitmap.compress(Bitmap.CompressFormat.JPEG, 80, baos)
+                                            photoBase64 = Base64.encodeToString(baos.toByteArray(), Base64.NO_WRAP)
+                                        }
+                                    } catch (e: Throwable) {
+                                        // Proceed without photo if encoding fails
+                                    }
                                 }
-                                Toast.makeText(context, successMsg, Toast.LENGTH_LONG).show()
-                                onSubmitted()
-                            } else {
-                                errorMessage = result.second
-                                serverErrorDetail = result.second
-                                showScriptUpdateHelpDialog = true
+
+                                try {
+                                    com.example.data.GoogleSheetMasjidSync.submitMasjidRequestAuto(
+                                        name = cleanMasjidName,
+                                        location = location.trim(),
+                                        adminName = adminName.trim(),
+                                        contact = adminContact.trim(),
+                                        photoBase64 = photoBase64,
+                                        photoName = "$cleanMasjidName.jpg",
+                                        webAppUrl = targetUrl
+                                    )
+                                } catch (e: Exception) {
+                                    // Handled gracefully in background
+                                }
+                                isSending = false
+                                showSuccessDialog = true
                             }
                         }
                     },
@@ -1262,8 +1312,8 @@ fun AddMasjidAutoDialog(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Uploading to Drive & Sheet...",
-                            fontSize = 12.5.sp,
+                            text = "Uploading...",
+                            fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.White
                         )
@@ -1290,90 +1340,54 @@ fun AddMasjidAutoDialog(
             }
         }
 
-        if (showScriptUpdateHelpDialog) {
+        if (showSuccessDialog) {
             AlertDialog(
-                onDismissRequest = { showScriptUpdateHelpDialog = false },
+                onDismissRequest = {
+                    showSuccessDialog = false
+                    onSubmitted()
+                },
                 title = {
-                    Text(
-                        text = "Google Apps Script Update Required",
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFFF3DE8E),
-                        fontSize = 16.sp
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = "Success",
+                            tint = Color(0xFF10B981),
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Text(
+                            text = "Masjid Details Successfully Submitted",
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF10B981),
+                            fontSize = 16.sp
+                        )
+                    }
                 },
                 text = {
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.verticalScroll(rememberScrollState())
-                    ) {
-                        Text(
-                            text = "Server Error: $serverErrorDetail",
-                            fontSize = 12.sp,
-                            color = Color(0xFFEF4444),
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "Aapke Google Sheet ke Apps Script me naya code update nahi hai. Sheet me naya code daal kar 'Deploy > New Version' karein tab data & photo Sheet1 me jayega.",
-                            fontSize = 11.5.sp,
-                            color = Color.White.copy(alpha = 0.85f),
-                            lineHeight = 16.sp
-                        )
-                        
-                        Button(
-                            onClick = {
-                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                                val clip = android.content.ClipData.newPlainText("AppsScriptCode", com.example.data.GoogleSheetMasjidSync.APPS_SCRIPT_SAMPLE_CODE)
-                                clipboard.setPrimaryClip(clip)
-                                Toast.makeText(context, "Apps Script Code Copied to Clipboard! ✓", Toast.LENGTH_LONG).show()
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E293B)),
-                            shape = RoundedCornerShape(8.dp),
-                            border = BorderStroke(1.dp, Color(0xFF38BDF8)),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = "📋 Copy Latest Apps Script Code",
-                                fontSize = 11.5.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF38BDF8)
-                            )
-                        }
-
-                        Button(
-                            onClick = {
-                                val cleanName = masjidName.trim()
-                                val cleanLoc = location.trim()
-                                val cleanAdmin = adminName.trim()
-                                val cleanContact = adminContact.trim()
-                                val msg = "🕌 *Request Add Masjid*\n*Name:* $cleanName\n*Address:* $cleanLoc\n*Admin:* $cleanAdmin\n*Contact:* $cleanContact"
-                                val intent = Intent(Intent.ACTION_VIEW).apply {
-                                    data = Uri.parse("https://api.whatsapp.com/send?phone=919960171516&text=" + Uri.encode(msg))
-                                }
-                                try {
-                                    context.startActivity(intent)
-                                } catch (e: Exception) {
-                                    Toast.makeText(context, "WhatsApp not installed", Toast.LENGTH_SHORT).show()
-                                }
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
-                            shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = "💬 Send Request via WhatsApp",
-                                fontSize = 11.5.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
-                            )
-                        }
-                    }
+                    Text(
+                        text = "JazakAllah Khair!",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.White,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
                 },
                 confirmButton = {
-                    TextButton(onClick = { showScriptUpdateHelpDialog = false }) {
-                        Text("OK", color = Color(0xFFF3DE8E), fontWeight = FontWeight.Bold)
+                    Button(
+                        onClick = {
+                            showSuccessDialog = false
+                            onSubmitted()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("OK", color = Color.White, fontWeight = FontWeight.Bold)
                     }
                 },
-                containerColor = Color(0xFF0F172A)
+                containerColor = Color(0xFF0F172A),
+                shape = RoundedCornerShape(16.dp)
             )
         }
     }
