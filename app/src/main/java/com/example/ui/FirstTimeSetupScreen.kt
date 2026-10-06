@@ -551,20 +551,16 @@ fun FirstTimeSetupScreen(
 
                     Spacer(modifier = Modifier.height(2.dp))
 
-                    // Heavy Bold AZAN TIME
+                    // Heavy Bold AZAN TIME in Graen Metal Font
                     Text(
                         text = "AZAN TIME",
-                        fontSize = 40.sp,
-                        fontWeight = FontWeight.Black,
-                        letterSpacing = 2.5.sp,
+                        fontFamily = GraenMetalFontFamily,
+                        fontSize = 42.sp,
+                        fontWeight = FontWeight.Normal,
+                        letterSpacing = 2.sp,
                         style = TextStyle(
-                            brush = Brush.horizontalGradient(
-                                listOf(
-                                    Color(0xFFFFF6D3),
-                                    Color(0xFFF2CA50),
-                                    Color(0xFFD4AF37)
-                                )
-                            )
+                            brush = GraenMetalGoldGradient,
+                            shadow = GraenMetalGoldShadow
                         ),
                         textAlign = TextAlign.Center
                     )

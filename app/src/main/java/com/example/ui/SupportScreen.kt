@@ -253,10 +253,14 @@ fun SupportScreen(
 
                     Text(
                         text = "AZAN TIME",
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Black,
-                        color = primaryGold,
-                        letterSpacing = 2.5.sp
+                        fontFamily = GraenMetalFontFamily,
+                        fontSize = 26.sp,
+                        fontWeight = FontWeight.Normal,
+                        letterSpacing = 2.sp,
+                        style = androidx.compose.ui.text.TextStyle(
+                            brush = GraenMetalGoldGradient,
+                            shadow = GraenMetalGoldShadow
+                        )
                     )
                 }
 

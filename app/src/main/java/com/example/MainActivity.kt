@@ -12,6 +12,8 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import com.example.ui.SplashScreen
+import androidx.compose.runtime.saveable.rememberSaveable
 import com.example.ui.FirstTimeSetupScreen
 import com.example.data.GoogleSheetMasjidSync
 import com.example.util.AppUpdateManager
@@ -188,13 +190,32 @@ class MainActivity : ComponentActivity() {
                     else -> EnglishStrings
                 }
 
+                val isAlarmIntent = intent.getBooleanExtra("FROM_ALARM", false)
+                var showSplashScreen by remember { mutableStateOf(!isAlarmIntent) }
+
                 CompositionLocalProvider(LocalAppStrings provides strings) {
-                    Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                        AzanScreen(
-                            viewModel = viewModel,
-                            uiState = uiState,
-                            modifier = Modifier.padding(innerPadding)
+                    AnimatedVisibility(
+                        visible = showSplashScreen,
+                        enter = fadeIn(tween(200)),
+                        exit = fadeOut(tween(400))
+                    ) {
+                        SplashScreen(
+                            onSplashFinished = { showSplashScreen = false }
                         )
+                    }
+
+                    AnimatedVisibility(
+                        visible = !showSplashScreen,
+                        enter = fadeIn(tween(400)),
+                        exit = fadeOut(tween(200))
+                    ) {
+                        Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+                            AzanScreen(
+                                viewModel = viewModel,
+                                uiState = uiState,
+                                modifier = Modifier.padding(innerPadding)
+                            )
+                        }
                     }
                 }
             }

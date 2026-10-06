@@ -293,15 +293,15 @@ fun TrackerBoardContent(
                             modifier = Modifier.padding(bottom = 2.dp)
                         )
                         Text(
-                            text = curStrings.azanTimeHeader,
-                            fontSize = if (uiState.language == "ur") 22.sp else 26.sp,
-                            fontWeight = FontWeight.Black,
+                            text = if (uiState.language == "ur") curStrings.azanTimeHeader else "AZAN TIME",
+                            fontSize = if (uiState.language == "ur") 22.sp else 30.sp,
+                            fontFamily = if (uiState.language == "ur") null else GraenMetalFontFamily,
+                            fontWeight = FontWeight.Normal,
                             style = androidx.compose.ui.text.TextStyle(
-                                brush = Brush.verticalGradient(
-                                    colors = listOf(Color(0xFFF3DE8E), Color(0xFFB37C3C))
-                                )
+                                brush = GraenMetalGoldGradient,
+                                shadow = GraenMetalGoldShadow
                             ),
-                            letterSpacing = if (uiState.language == "ur") 0.sp else 2.5.sp,
+                            letterSpacing = if (uiState.language == "ur") 0.sp else 1.5.sp,
                             textAlign = TextAlign.Center
                         )
                         Text(
@@ -3270,15 +3270,15 @@ fun RamazanScreenContent(
                             modifier = Modifier.padding(bottom = 2.dp)
                         )
                         Text(
-                            text = curStrings.azanTimeHeader,
-                            fontSize = if (uiState.language == "ur") 22.sp else 26.sp,
-                            fontWeight = FontWeight.Black,
+                            text = if (uiState.language == "ur") curStrings.azanTimeHeader else "AZAN TIME",
+                            fontSize = if (uiState.language == "ur") 22.sp else 30.sp,
+                            fontFamily = if (uiState.language == "ur") null else GraenMetalFontFamily,
+                            fontWeight = FontWeight.Normal,
                             style = androidx.compose.ui.text.TextStyle(
-                                brush = Brush.verticalGradient(
-                                    colors = listOf(Color(0xFFF3DE8E), Color(0xFFB37C3C))
-                                )
+                                brush = GraenMetalGoldGradient,
+                                shadow = GraenMetalGoldShadow
                             ),
-                            letterSpacing = if (uiState.language == "ur") 0.sp else 2.5.sp,
+                            letterSpacing = if (uiState.language == "ur") 0.sp else 1.5.sp,
                             textAlign = TextAlign.Center
                         )
                         Text(
