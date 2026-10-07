@@ -147,6 +147,9 @@ class MainActivity : ComponentActivity() {
         }
         try {
             com.example.worker.PrayerWorkScheduler.scheduleDailySync(applicationContext)
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                com.example.worker.PrayerWorkScheduler.scheduleAllPrayerNotifications(applicationContext)
+            }
         } catch (e: Throwable) {
             e.printStackTrace()
         }

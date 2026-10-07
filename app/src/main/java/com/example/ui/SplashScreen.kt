@@ -276,7 +276,7 @@ fun SplashScreen(
                 // ==================== CIRCULAR MEDALLION ====================
                 Box(
                     modifier = Modifier
-                        .size(240.dp)
+                        .size(280.dp)
                         .graphicsLayer {
                             scaleX = medallionScale.value
                             scaleY = medallionScale.value
@@ -288,7 +288,7 @@ fun SplashScreen(
                     // Outer Soft Glowing Aura
                     Box(
                         modifier = Modifier
-                            .size(260.dp)
+                            .size(300.dp)
                             .scale(pulseGlow)
                             .alpha(pulseGlow)
                             .blur(26.dp)
@@ -343,7 +343,7 @@ fun SplashScreen(
                     // Outer Ring 2: Dashed Ring Counter-Clockwise Rotation
                     Canvas(
                         modifier = Modifier
-                            .size(216.dp)
+                            .size(252.dp)
                             .rotate(ring2Rotation)
                     ) {
                         val stroke = 1.5.dp.toPx()
@@ -360,7 +360,7 @@ fun SplashScreen(
                     // Inner Shield Disc with App Logo
                     Box(
                         modifier = Modifier
-                            .size(186.dp)
+                            .size(226.dp)
                             .shadow(24.dp, shape = CircleShape, ambientColor = Color.Black, spotColor = Color(0xFFFED65B))
                             .clip(CircleShape)
                             .background(
@@ -372,7 +372,7 @@ fun SplashScreen(
                                 )
                             )
                             .border(1.5.dp, Color(0xFFFFE088).copy(alpha = 0.45f), CircleShape)
-                            .padding(14.dp),
+                            .padding(10.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Image(

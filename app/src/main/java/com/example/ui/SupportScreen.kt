@@ -616,19 +616,25 @@ fun SupportScreen(
 
                         Spacer(modifier = Modifier.height(10.dp))
 
-                        // Below Rate Us: App Rating Section
+                        // Below Rate Us: App Rating Section (Centered)
                         val appRatingDisplay = if (averageRating > 0.0) averageRating else 4.8
-                        Column {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
                             Text(
-                                text = "App Rating",
+                                text = "APP RATING",
                                 fontSize = 11.5.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = primaryGold
+                                fontWeight = FontWeight.ExtraBold,
+                                color = primaryGold,
+                                letterSpacing = 1.2.sp,
+                                textAlign = TextAlign.Center
                             )
-                            Spacer(modifier = Modifier.height(2.dp))
+                            Spacer(modifier = Modifier.height(3.dp))
                             Row(
+                                modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                horizontalArrangement = Arrangement.Center
                             ) {
                                 Text(
                                     text = String.format(Locale.US, "%.1f", appRatingDisplay),
@@ -636,6 +642,7 @@ fun SupportScreen(
                                     fontWeight = FontWeight.Black,
                                     color = Color.White
                                 )
+                                Spacer(modifier = Modifier.width(6.dp))
                                 // 5 Golden App Rating Stars
                                 Row(horizontalArrangement = Arrangement.spacedBy(2.5.dp)) {
                                     for (i in 1..5) {
@@ -655,7 +662,8 @@ fun SupportScreen(
                             Text(
                                 text = "Trusted by 1000+ worshippers",
                                 fontSize = 11.sp,
-                                color = Color.White.copy(alpha = 0.65f)
+                                color = Color.White.copy(alpha = 0.65f),
+                                textAlign = TextAlign.Center
                             )
                         }
 
